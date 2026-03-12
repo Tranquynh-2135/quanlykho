@@ -1,0 +1,45 @@
+.products-page {
+  padding: 20px;
+}
+
+h1 {
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.products-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.products-table th,
+.products-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.products-table th {
+  background-color: #f4f6f9;
+  font-weight: bold;
+}
+
+.status {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+.status.active { background: #d4edda; color: #155724; }
+.status.inactive { background: #fff3cd; color: #856404; }
+.status.discontinued { background: #f8d7da; color: #721c24; }
+
+.loading, .error {
+  text-align: center;
+  padding: 50px;
+  font-size: 1.2em;
+}
+
+.error { color: red; }
