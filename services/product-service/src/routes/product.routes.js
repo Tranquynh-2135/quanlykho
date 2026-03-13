@@ -29,4 +29,4 @@ router.delete("/:id", deleteProduct);
 // INCREASE STOCK (đã thêm)
 router.patch("/increase-stock/:code", increaseStock);
 
-module.exports = router;
+
