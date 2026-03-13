@@ -1,5 +1,4 @@
-
-const Product = require('../models/product.model'); // điều chỉnh đường dẫn nếu cần
+const Product = require("../models/product.model"); // điều chỉnh đường dẫn nếu cần
 
 // lấy tất cả sản phẩm
 const getAllProducts = async (req, res, next) => {
@@ -11,8 +10,8 @@ const getAllProducts = async (req, res, next) => {
     // tìm kiếm theo mã hoặc tên (không phân biệt hoa thường)
     if (search) {
       query.$or = [
-        { code: { $regex: search.trim(), $options: 'i' } },
-        { name: { $regex: search.trim(), $options: 'i' } }
+        { code: { $regex: search.trim(), $options: "i" } },
+        { name: { $regex: search.trim(), $options: "i" } },
       ];
     }
 
@@ -38,8 +37,8 @@ const getAllProducts = async (req, res, next) => {
         total,
         page: Number(page),
         limit: Number(limit),
-        totalPages: Math.ceil(total / limit)
-      }
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (err) {
     next(err);
@@ -54,13 +53,13 @@ const getProductById = async (req, res, next) => {
     if (!product) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy sản phẩm'
+        message: "Không tìm thấy sản phẩm",
       });
     }
 
     res.json({
       success: true,
-      data: product
+      data: product,
     });
   } catch (err) {
     next(err);
@@ -75,7 +74,7 @@ const createProduct = async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      data: savedProduct
+      data: savedProduct,
     });
   } catch (err) {
     next(err);
@@ -85,26 +84,22 @@ const createProduct = async (req, res, next) => {
 // cập nhật sản phẩm
 const updateProduct = async (req, res, next) => {
   try {
-    const product = await Product.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,              // trả về document sau khi update
-        runValidators: true,    // chạy validation của schema
-        timestamps: true        // tự động cập nhật updatedAt
-      }
-    );
+    const product = await Product.findByIdAndUpdate(req.params.id, req.body, {
+      new: true, // trả về document sau khi update
+      runValidators: true, // chạy validation của schema
+      timestamps: true, // tự động cập nhật updatedAt
+    });
 
     if (!product) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy sản phẩm để cập nhật'
+        message: "Không tìm thấy sản phẩm để cập nhật",
       });
     }
 
     res.json({
       success: true,
-      data: product
+      data: product,
     });
   } catch (err) {
     next(err);
@@ -119,16 +114,35 @@ const deleteProduct = async (req, res, next) => {
     if (!product) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy sản phẩm để xóa'
+        message: "Không tìm thấy sản phẩm để xóa",
       });
     }
 
     res.status(200).json({
       success: true,
-      message: 'Xóa sản phẩm thành công',
-      data: { id: req.params.id }
+      message: "Xóa sản phẩm thành công",
+      data: { id: req.params.id },
     });
+  } catch (err) {
+    next(err);
+  }
+};
+// Tăng stock khi nhập kho
+const increaseStock = async (req, res, next) => {
+  try {
+    const { quantity } = req.body;
+    const product = await Product.findOneAndUpdate(
+      { code: req.params.code },
+      { $inc: { stock: quantity } },
+      { new: true },
+    );
 
+    if (!product)
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy sản phẩm" });
+
+    res.json({ success: true, data: product });
   } catch (err) {
     next(err);
   }
@@ -139,5 +153,6 @@ module.exports = {
   getProductById,
   createProduct,
   updateProduct,
-  deleteProduct
+  increaseStock,
+  deleteProduct,
 };

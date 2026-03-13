@@ -36,7 +36,7 @@ app.use(errorHandler);
 
 // Kết nối DB
 const PORT = process.env.PORT || 4001;
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/product-service';
+const MONGO_URI = process.env.MONGO_URI;
 
 mongoose
   .connect(MONGO_URI, {
