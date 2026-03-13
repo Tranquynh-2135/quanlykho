@@ -1,60 +1,32 @@
 const express = require("express");
 const router = express.Router();
-const Product = require("../models/product.model");
 
-// GET ALL
-router.get("/", async (req, res) => {
-  try {
-    const products = await Product.find();
-    res.json(products);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+// Import TẤT CẢ các hàm controller
+const {
+  getAllProducts,
+  getProductById,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  increaseStock,
+} = require("../controllers/product.controller");
+
+// GET ALL (dùng controller mới có pagination + search)
+router.get("/", getAllProducts);
 
 // GET BY ID
-router.get("/:id", async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id);
-    res.json(product);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+router.get("/:id", getProductById);
 
 // CREATE
-router.post("/", async (req, res) => {
-  try {
-    const product = new Product(req.body);
-    const saved = await product.save();
-    res.status(201).json(saved);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+router.post("/", createProduct);
 
 // UPDATE
-router.put("/:id", async (req, res) => {
-  try {
-    const updated = await Product.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
-    res.json(updated);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+router.put("/:id", updateProduct);
 
 // DELETE
-router.delete("/:id", async (req, res) => {
-  try {
-    await Product.findByIdAndDelete(req.params.id);
-    res.json({ message: "Product deleted" });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+router.delete("/:id", deleteProduct);
+
+// INCREASE STOCK (đã thêm)
+router.patch("/increase-stock/:code", increaseStock);
 
 module.exports = router;
