@@ -1,4 +1,4 @@
-require("dotenv").config(); // hỗ trợ đọc .env
+require("dotenv").config();
 
 const express = require("express");
 const mongoose = require("mongoose");
@@ -9,11 +9,9 @@ const errorHandler = require("./middlewares/error.middleware");
 
 const app = express();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Routes
 app.get("/health", (req, res) => {
   const dbStatus =
     mongoose.connection.readyState === 1 ? "connected" : "disconnected";
@@ -32,12 +30,20 @@ app.get("/", (req, res) => {
 
 app.use("/products", productRoutes);
 
-// Global error handler
-app.use(errorHandler);
+// Global error handler — phải là function (err, req, res, next)
+// Nếu file error.middleware.js không export đúng thì dùng fallback dưới đây
+app.use(typeof errorHandler === "function" ? errorHandler : (err, req, res, next) => {
+  console.error(err.stack);
+  res.status(err.status || 500).json({ success: false, message: err.message || "Internal Server Error" });
+});
 
-// Kết nối DB
 const PORT = process.env.PORT || 4001;
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI; // ✅ đọc từ .env
 
+if (!MONGO_URI) {
+  console.error("❌ MONGO_URI không được định nghĩa trong file .env");
+  process.exit(1);
+}
 
 mongoose
   .connect(MONGO_URI, {
@@ -50,18 +56,16 @@ mongoose
   })
   .catch((err) => {
     console.error("❌ MongoDB connection failed:", err.message);
-    process.exit(1); // thoát nếu không connect được DB
+    process.exit(1);
   });
 
-// Hàm khởi động server riêng
 function startServer() {
   const server = app.listen(PORT, () => {
     console.log(
-      `Product Service running on port ${PORT} | Environment: ${process.env.NODE_ENV || "development"}`,
+      `Product Service running on port ${PORT} | Environment: ${process.env.NODE_ENV || "development"}`
     );
   });
 
-  // Graceful shutdown
   const gracefulShutdown = () => {
     console.log("Received shutdown signal. Closing server...");
     server.close(() => {
@@ -73,7 +77,6 @@ function startServer() {
     });
   };
 
-  // Xử lý các signal dừng server
   process.on("SIGTERM", gracefulShutdown);
   process.on("SIGINT", gracefulShutdown);
 }
