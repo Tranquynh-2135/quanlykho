@@ -3,7 +3,7 @@ import Sidebar from "./components/Sidebar";
 
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products/Products";
-// import Import from "./pages/Import";
+import Import from "./pages/Import/Import";
 // import Export from "./pages/Export";
 // import Reports from "./pages/Reports";
 
@@ -22,6 +22,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/products" element={<Products />} />
+            <Route path="/import" element={<Import />} />
             {/* <Route path="/import" element={<Import />} />
             <Route path="/export" element={<Export />} />
             <Route path="/reports" element={<Reports />} /> */}

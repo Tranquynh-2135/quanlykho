@@ -127,6 +127,7 @@ const deleteProduct = async (req, res, next) => {
     next(err);
   }
 };
+
 // Tăng stock khi nhập kho
 const increaseStock = async (req, res, next) => {
   try {
@@ -155,4 +156,4 @@ module.exports = {
   updateProduct,
   increaseStock,
   deleteProduct,
-};
+
