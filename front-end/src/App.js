@@ -1,31 +1,31 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Sidebar from "./components/Sidebar";
-
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products/Products";
 import Import from "./pages/Import/Import";
-// import Export from "./pages/Export";
-// import Reports from "./pages/Reports";
+import Suppliers  from "./pages/Suppliers/Suppliers";
+import Warehouses from "./pages/Warehouses/Warehouses";
 
 function App() {
   return (
     <Router>
-      <div className="d-flex" style={{ minHeight: "100vh" }}>
-        {}
+      <div style={{ display: "flex", minHeight: "100vh" }}>
         <Sidebar />
 
-        {}
-        <div
-          className="flex-grow-1 bg-light p-4"
-          style={{ marginLeft: "260px" }}
-        >
+        {/* Content — marginLeft = width sidebar thu nhỏ */}
+        <div style={{
+          marginLeft: "68px",          /* bằng width sidebar thu nhỏ */
+          flex: 1,
+          background: "#f4f6fb",
+          minHeight: "100vh",
+          transition: "margin-left 0.25s ease",  /* mượt khi sidebar mở */
+        }}>
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/products" element={<Products />} />
-            <Route path="/import" element={<Import />} />
-            {/* <Route path="/import" element={<Import />} />
-            <Route path="/export" element={<Export />} />
-            <Route path="/reports" element={<Reports />} /> */}
+            <Route path="/"         element={<Dashboard />} />
+            <Route path="/products" element={<Products />}  />
+            <Route path="/import"   element={<Import />}    />
+            <Route path="/suppliers"  element={<Suppliers />}  />
+            <Route path="/warehouses" element={<Warehouses />} />
           </Routes>
         </div>
       </div>

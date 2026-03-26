@@ -1,41 +1,49 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
-  FaHome,
-  FaBox,
-  FaSignInAlt,
-  FaSignOutAlt,
-  FaChartBar,
-  FaUsers,
+  FaHome, FaBox, FaWarehouse, FaTruck, FaSignInAlt, FaSignOutAlt, FaChartBar, FaUsers,
 } from "react-icons/fa";
+import "./Sidebar.css";
+
+const menu = [
+  { to: "/",         icon: <FaHome />,       label: "Dashboard"           },
+  { to: "/products", icon: <FaBox />,        label: "Quản lý Sản phẩm"    },
+  { to: "/suppliers",  icon: <FaTruck />,     label: "Nhà cung cấp"       },
+  { to: "/warehouses", icon: <FaWarehouse />, label: "Quản lý Kho"        },
+  { to: "/import",   icon: <FaSignInAlt />,  label: "Nhập kho"            },
+  { to: "/export",   icon: <FaSignOutAlt />, label: "Xuất kho"            },
+  { to: "/reports",  icon: <FaChartBar />,   label: "Báo cáo & Thống kê"  },
+  { to: "/users",    icon: <FaUsers />,      label: "Người dùng"          },
+];
 
 const Sidebar = () => {
-  return (
-    <div
-      className="bg-dark text-white position-fixed top-0 start-0 bottom-0 p-4"
-      style={{ width: "260px" }}
-    >
-      <h3 className="mb-4 text-center">📦 KHO HÀNG</h3>
+  const location = useLocation();
 
-      <div className="nav flex-column">
-        <Link to="/" className="nav-link text-white py-3">
-          <FaHome className="me-3" /> Dashboard
-        </Link>
-        <Link to="/products" className="nav-link text-white py-3">
-          <FaBox className="me-3" /> Quản lý Sản phẩm
-        </Link>
-        <Link to="/import" className="nav-link text-white py-3">
-          <FaSignInAlt className="me-3" /> Nhập kho
-        </Link>
-        <Link to="/export" className="nav-link text-white py-3">
-          <FaSignOutAlt className="me-3" /> Xuất kho
-        </Link>
-        <Link to="/reports" className="nav-link text-white py-3">
-          <FaChartBar className="me-3" /> Báo cáo & Thống kê
-        </Link>
+  return (
+    <div className="sidebar">
+      {/* Logo */}
+      <div className="sidebar-logo">
+        <span className="sidebar-logo-icon">📦</span>
+        <span className="sidebar-logo-text">KHO HÀNG</span>
       </div>
 
-      <div className="mt-auto pt-4 border-top">
-        <small className="text-muted">Đồ án tốt nghiệp</small>
+      {/* Menu */}
+      <nav className="sidebar-nav">
+        {menu.map((item) => (
+          <Link
+            key={item.to}
+            to={item.to}
+            className={`sidebar-link ${location.pathname === item.to ? "active" : ""}`}
+          >
+            <span className="sidebar-icon">{item.icon}</span>
+            <span className="sidebar-label">{item.label}</span>
+          </Link>
+        ))}
+      </nav>
+
+      {/* Footer */}
+      <div className="sidebar-footer">
+        <span className="sidebar-icon">🎓</span>
+        <span className="sidebar-label">Đồ án tốt nghiệp</span>
       </div>
     </div>
   );

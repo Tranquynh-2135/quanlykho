@@ -3,6 +3,7 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const fs = require("fs");
 
 const productRoutes = require("./routes/product.routes");
 const errorHandler = require("./middlewares/error.middleware");
@@ -11,6 +12,9 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+if (!fs.existsSync("uploads")) fs.mkdirSync("uploads");
+app.use("/uploads", express.static("uploads"));
 
 app.get("/health", (req, res) => {
   const dbStatus =
@@ -37,7 +41,7 @@ app.use(typeof errorHandler === "function" ? errorHandler : (err, req, res, next
   res.status(err.status || 500).json({ success: false, message: err.message || "Internal Server Error" });
 });
 
-const PORT = process.env.PORT || 4001;
+const PORT = process.env.PORT;
 const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI; // ✅ đọc từ .env
 
 if (!MONGO_URI) {

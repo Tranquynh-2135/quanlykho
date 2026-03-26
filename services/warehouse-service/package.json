@@ -1,5 +1,5 @@
 {
-  "name": "product-service",
+  "name": "warehouse-service",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -14,7 +14,6 @@
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
-    "mongoose": "^9.3.0",
-    "multer": "^2.1.1"
+    "mongoose": "^9.3.3"
   }
 }

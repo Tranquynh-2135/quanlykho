@@ -1,0 +1,13 @@
+.expiry-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.expiry-red     { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+.expiry-yellow  { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+.expiry-green   { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+.expiry-expired { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
+.expiry-none    { background: #f1f5f9; color: #94a3b8; border: 1px solid #e2e8f0; }
