@@ -37,9 +37,8 @@ const getAllImports = async (req, res, next) => {
 // ====================== CREATE IMPORT (tự động tăng stock) ======================
 const createImport = async (req, res, next) => {
   try {
-    const { code, supplier, items, notes } = req.body;
+    const { code, supplierId, warehouseId, items, notes } = req.body;
 
-    // Tính totalAmount và totalPrice từng item
     let totalAmount = 0;
     const processedItems = items.map((item) => {
       const totalPrice = item.quantity * item.unitPrice;
@@ -49,7 +48,8 @@ const createImport = async (req, res, next) => {
 
     const newImport = new Import({
       code,
-      supplier,
+      supplierId,
+      warehouseId,
       items: processedItems,
       totalAmount,
       notes,
@@ -58,7 +58,7 @@ const createImport = async (req, res, next) => {
 
     const savedImport = await newImport.save();
 
-    // === TỰ ĐỘNG TĂNG STOCK Ở PRODUCT-SERVICE ===
+    // Tăng stock
     for (const item of processedItems) {
       try {
         await axios.patch(
@@ -68,10 +68,7 @@ const createImport = async (req, res, next) => {
           },
         );
       } catch (err) {
-        console.error(
-          `Không tăng được stock cho ${item.productCode}:`,
-          err.message,
-        );
+        console.error(err.message);
       }
     }
 
