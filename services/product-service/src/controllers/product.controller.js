@@ -31,7 +31,9 @@ const getAllProducts = async (req, res, next) => {
         totalPages: Math.ceil(total / Number(limit)),
       },
     });
-  } catch (err) { next(err); }
+  } catch (err) {
+    next(err);
+  }
 };
 
 // GET BY ID
@@ -39,9 +41,13 @@ const getProductById = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product)
-      return res.status(404).json({ success: false, message: "Không tìm thấy sản phẩm" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy sản phẩm" });
     res.json({ success: true, data: product });
-  } catch (err) { next(err); }
+  } catch (err) {
+    next(err);
+  }
 };
 
 // CREATE — strip các field cũ không còn dùng
@@ -50,21 +56,27 @@ const createProduct = async (req, res, next) => {
     const { stock, images, supplier, ...safeData } = req.body;
     const product = await new Product(safeData).save();
     res.status(201).json({ success: true, data: product });
-  } catch (err) { next(err); }
+  } catch (err) {
+    next(err);
+  }
 };
 
 // UPDATE
 const updateProduct = async (req, res, next) => {
   try {
     const { stock, images, supplier, ...safeData } = req.body;
-    const product = await Product.findByIdAndUpdate(
-      req.params.id, safeData,
-      { new: true, runValidators: true }
-    );
+    const product = await Product.findByIdAndUpdate(req.params.id, safeData, {
+      new: true,
+      runValidators: true,
+    });
     if (!product)
-      return res.status(404).json({ success: false, message: "Không tìm thấy sản phẩm" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy sản phẩm" });
     res.json({ success: true, data: product });
-  } catch (err) { next(err); }
+  } catch (err) {
+    next(err);
+  }
 };
 
 // DELETE
@@ -72,16 +84,65 @@ const deleteProduct = async (req, res, next) => {
   try {
     const product = await Product.findByIdAndDelete(req.params.id);
     if (!product)
-      return res.status(404).json({ success: false, message: "Không tìm thấy sản phẩm" });
-    res.json({ success: true, message: "Xóa sản phẩm thành công", data: { id: req.params.id } });
-  } catch (err) { next(err); }
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy sản phẩm" });
+    res.json({
+      success: true,
+      message: "Xóa sản phẩm thành công",
+      data: { id: req.params.id },
+    });
+  } catch (err) {
+    next(err);
+  }
 };
 
 // UPLOAD IMAGE
 const uploadImage = (req, res) => {
   if (!req.file)
-    return res.status(400).json({ success: false, message: "Không có file ảnh" });
+    return res
+      .status(400)
+      .json({ success: false, message: "Không có file ảnh" });
   res.json({ success: true, imageHash: req.file.filename });
 };
 
-module.exports = { getAllProducts, getProductById, createProduct, updateProduct, deleteProduct, uploadImage };
+// Tăng stock khi nhập kho
+const increaseStock = async (req, res, next) => {
+  try {
+    const { quantity } = req.body;
+
+    if (!quantity || quantity <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Quantity phải lớn hơn 0",
+      });
+    }
+
+    const product = await Product.findOneAndUpdate(
+      { code: req.params.code },
+      { $inc: { stock: quantity } },
+      { new: true, runValidators: true },
+    );
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: `Không tìm thấy sản phẩm có code: ${req.params.code}`,
+      });
+    }
+
+    res.json({ success: true, data: product });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = {
+  getAllProducts,
+  getProductById,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  uploadImage,
+  increaseStock,
+};
