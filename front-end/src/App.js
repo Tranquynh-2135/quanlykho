@@ -5,6 +5,7 @@ import Products from "./pages/Products/Products";
 import Import from "./pages/Import/Import";
 import Suppliers  from "./pages/Suppliers/Suppliers";
 import Warehouses from "./pages/Warehouses/Warehouses";
+import Users from "./pages/Users/Users";
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
             <Route path="/import"   element={<Import />}    />
             <Route path="/suppliers"  element={<Suppliers />}  />
             <Route path="/warehouses" element={<Warehouses />} />
+            <Route path="/users" element={<Users />} />
           </Routes>
         </div>
       </div>
