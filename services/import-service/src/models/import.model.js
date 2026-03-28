@@ -7,6 +7,8 @@ const importSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+    supplierId: { type: String, required: true },
+    warehouseId: { type: String, required: true },
     supplier: {
       type: String,
       required: true,
