@@ -9,10 +9,6 @@ const importSchema = new mongoose.Schema(
     },
     supplierId: { type: String, required: true },
     warehouseId: { type: String, required: true },
-    supplier: {
-      type: String,
-      required: true,
-    },
     importDate: {
       type: Date,
       default: Date.now,
