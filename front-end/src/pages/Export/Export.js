@@ -6,7 +6,6 @@ export default function Export() {
   const [warehouses, setWarehouses] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [history, setHistory] = useState([]);
-  const [filteredHistory, setFilteredHistory] = useState([]);
 
   const [form, setForm] = useState({
     warehouseId: "",
@@ -20,15 +19,7 @@ export default function Export() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const [searchFilters, setSearchFilters] = useState({
-    productId: "",
-    warehouseId: "",
-    reason: "",
-    fromDate: "",
-    toDate: ""
-  });
-
-  // Load dữ liệu khi vào trang
+  // ================= LOAD DATA =================
   useEffect(() => {
     loadProducts();
     loadWarehouses();
@@ -36,121 +27,78 @@ export default function Export() {
     loadHistory();
   }, []);
 
-  useEffect(() => {
-    applyFilters();
-  }, [history, searchFilters]);
-
-  // ==================== LOAD PRODUCTS ====================
+  // ===== PRODUCTS =====
   const loadProducts = async () => {
     try {
-      console.log("🔄 Đang gọi API Products...");
       const res = await fetch("http://localhost:4001/products");
-
-      console.log("📡 Products Status:", res.status);
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      const response = await res.json();
-      console.log("📦 Products data:", response);
-
-      const productList = response?.data || (Array.isArray(response) ? response : []);
-      setProducts(productList);
-      console.log(`✅ Đã load ${productList.length} sản phẩm`);
+      const data = await res.json();
+      setProducts(data?.data || []);
     } catch (err) {
-      console.error("❌ Lỗi load products:", err.message);
+      console.error("Lỗi products:", err);
     }
   };
 
-  // ==================== LOAD WAREHOUSES (SỬA ROUTE) ====================
+  // ===== WAREHOUSES =====
   const loadWarehouses = async () => {
     try {
-      console.log("🔄 Đang gọi API Warehouses...");
-      const res = await fetch("http://localhost:4005/warehouses");   // ← SỬA: bỏ /api
-
-      console.log("📡 Warehouses Status:", res.status);
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      const response = await res.json();
-      console.log("📦 Warehouses data:", response);
-
-      const warehouseList = response?.data || (Array.isArray(response) ? response : []);
-      setWarehouses(warehouseList);
-      console.log(`✅ Đã load ${warehouseList.length} kho`);
+      const res = await fetch("http://localhost:4005/warehouses");
+      const data = await res.json();
+      setWarehouses(data?.data || []);
     } catch (err) {
-      console.error("❌ Lỗi load warehouses:", err.message);
+      console.error("Lỗi warehouses:", err);
     }
   };
 
-  // ==================== LOAD SUPPLIERS ====================
+  // ===== SUPPLIERS (FIX KHÔNG CẦN API) =====
   const loadSuppliers = async () => {
-    try {
-      console.log("🔄 Đang gọi API Suppliers...");
-      const res = await fetch("http://localhost:4004/suppliers");   // ← SỬA: bỏ /api (nếu cần)
-
-      console.log("📡 Suppliers Status:", res.status);
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      const response = await res.json();
-      const supplierList = response?.data || (Array.isArray(response) ? response : []);
-      setSuppliers(supplierList);
-      console.log(`✅ Đã load ${supplierList.length} nhà cung cấp`);
-    } catch (err) {
-      console.error("❌ Lỗi load suppliers:", err.message);
-    }
+    // 👉 TẠM FIX cứng để không lỗi
+    setSuppliers([
+      { _id: "1", name: "Khách lẻ" },
+      { _id: "2", name: "Quỳnh" }
+    ]);
   };
 
+  // ===== HISTORY =====
   const loadHistory = async () => {
     try {
-      const res = await fetch("http://localhost:4003/api/exports");
+      const res = await fetch("http://localhost:4004/exports");
+      if (!res.ok) return;
       const data = await res.json();
-      const historyData = Array.isArray(data) ? data : data?.data || [];
-      setHistory(historyData);
+      setHistory(data?.data || []);
     } catch (err) {
-      console.error("Lỗi load history:", err);
+      console.error("Lỗi history:", err);
     }
   };
 
+  // ================= STOCK =================
   const fetchStock = async (productId, warehouseId) => {
     if (!productId || !warehouseId) return;
+
     try {
       const res = await fetch(
-        `http://localhost:4005/api/warehouses/current-stock?productId=${productId}&warehouseId=${warehouseId}`
+        `http://localhost:4005/warehouses/current-stock?productId=${productId}&warehouseId=${warehouseId}`
       );
+
+      if (!res.ok) return;
+
       const data = await res.json();
-      setStockMap(prev => ({ ...prev, [productId]: data.quantity || 0 }));
+
+      setStockMap(prev => ({
+        ...prev,
+        [productId]: data.quantity || 0
+      }));
     } catch (err) {
-      console.error("Lỗi lấy tồn kho:", err);
+      console.error("Lỗi tồn kho:", err);
     }
-  };
-
-  const applyFilters = () => {
-    let result = [...history];
-    if (searchFilters.productId) result = result.filter(i => i.productId === searchFilters.productId);
-    if (searchFilters.warehouseId) result = result.filter(i => i.warehouseId === searchFilters.warehouseId);
-    if (searchFilters.reason) result = result.filter(i => i.reason === searchFilters.reason);
-    if (searchFilters.fromDate) result = result.filter(i => new Date(i.createdAt) >= new Date(searchFilters.fromDate));
-    if (searchFilters.toDate) {
-      const to = new Date(searchFilters.toDate);
-      to.setHours(23, 59, 59);
-      result = result.filter(i => new Date(i.createdAt) <= to);
-    }
-    setFilteredHistory(result);
-  };
-
-  const handleFilterChange = (field, value) => {
-    setSearchFilters(prev => ({ ...prev, [field]: value }));
-  };
-
-  const resetFilters = () => {
-    setSearchFilters({ productId: "", warehouseId: "", reason: "", fromDate: "", toDate: "" });
   };
 
   const handleWarehouseChange = (warehouseId) => {
     setForm(prev => ({ ...prev, warehouseId }));
+
     items.forEach(item => {
-      if (item.productId) fetchStock(item.productId, warehouseId);
+      if (item.productId) {
+        fetchStock(item.productId, warehouseId);
+      }
     });
   };
 
@@ -164,53 +112,72 @@ export default function Export() {
     }
   };
 
-  const addItem = () => setItems([...items, { productId: "", quantity: 1 }]);
+  const addItem = () => {
+    setItems([...items, { productId: "", quantity: 1 }]);
+  };
 
   const removeItem = (index) => {
     if (items.length === 1) return;
     setItems(items.filter((_, i) => i !== index));
   };
 
+  // ================= SUBMIT =================
   const handleSubmit = async () => {
-    if (!form.warehouseId) return setError("Vui lòng chọn kho!");
-    if (!form.supplierId) return setError("Vui lòng chọn nhà phân phối!");
+    if (!form.warehouseId) return setError("Chọn kho!");
+    if (!form.supplierId) return setError("Chọn khách!");
 
     setLoading(true);
     setError("");
 
     try {
-      for (const item of items) {
-        if (!item.productId) throw new Error("Vui lòng chọn sản phẩm cho tất cả dòng!");
-        if (item.quantity < 1) throw new Error("Số lượng phải lớn hơn 0!");
+      const exportData = {
+        code: "EXP-" + Date.now(),
+        customer:
+          suppliers.find(s => s._id === form.supplierId)?.name || "Khách lẻ",
+        items: items.map(item => {
+          const product = products.find(p => p._id === item.productId);
 
-        const currentStock = stockMap[item.productId] || 0;
-        if (item.quantity > currentStock) {
-          throw new Error(`Vượt tồn kho! Hiện chỉ còn ${currentStock}`);
-        }
+          if (!product) throw new Error("Sản phẩm không hợp lệ!");
 
-        const res = await fetch("http://localhost:4003/api/exports", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            productId: item.productId,
-            warehouseId: form.warehouseId,
+          const stock = stockMap[item.productId] || 0;
+          if (item.quantity > stock) {
+            throw new Error(`Chỉ còn ${stock} sản phẩm trong kho`);
+          }
+
+          return {
+            productCode: product.code,
             quantity: item.quantity,
-            reason: form.reason,
-            note: form.note,
-          }),
-        });
+            unitPrice: product.price || 0
+          };
+        }),
+        notes: form.note
+      };
 
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.message || "Lỗi khi xuất kho");
-        }
-      }
+      const res = await fetch("http://localhost:4004/exports", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(exportData)
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.message || "Lỗi xuất kho");
 
       alert("✅ Xuất kho thành công!");
+
+      // reset
       setItems([{ productId: "", quantity: 1 }]);
-      setForm(prev => ({ ...prev, note: "" }));
+      setForm({
+        warehouseId: "",
+        supplierId: "",
+        reason: "Bán hàng",
+        note: ""
+      });
       setStockMap({});
       loadHistory();
+
     } catch (err) {
       setError(err.message);
     } finally {
@@ -218,55 +185,40 @@ export default function Export() {
     }
   };
 
+  // ================= UI =================
   return (
     <div className="export-container">
       <h2>📦 Xuất kho</h2>
+
       {error && <p className="error">{error}</p>}
 
       <div className="form-row">
-        {/* Chọn kho */}
-        <select 
-          value={form.warehouseId} 
+        {/* Kho */}
+        <select
+          value={form.warehouseId}
           onChange={e => handleWarehouseChange(e.target.value)}
-          style={{ width: "100%", padding: "10px", fontSize: "14px" }}
         >
           <option value="">-- Chọn kho --</option>
-          {warehouses.length === 0 ? (
-            <option disabled>Đang tải danh sách kho...</option>
-          ) : (
-            warehouses.map(w => (
-              <option key={w._id} value={w._id}>
-                {w.name} {w.location ? `(${w.location})` : ''}
-              </option>
-            ))
-          )}
+          {warehouses.map(w => (
+            <option key={w._id} value={w._id}>
+              {w.name}
+            </option>
+          ))}
         </select>
 
-        {/* Chọn nhà phân phối */}
-        <select 
-          value={form.supplierId} 
-          onChange={e => setForm(prev => ({ ...prev, supplierId: e.target.value }))}
-          style={{ width: "100%", padding: "10px", fontSize: "14px" }}
+        {/* Khách */}
+        <select
+          value={form.supplierId}
+          onChange={e =>
+            setForm(prev => ({ ...prev, supplierId: e.target.value }))
+          }
         >
-          <option value="">-- Chọn nhà phân phối --</option>
-          {suppliers.length === 0 ? (
-            <option disabled>Đang tải nhà cung cấp...</option>
-          ) : (
-            suppliers.map(s => (
-              <option key={s._id} value={s._id}>{s.name}</option>
-            ))
-          )}
-        </select>
-
-        {/* Lý do */}
-        <select 
-          value={form.reason} 
-          onChange={e => setForm(prev => ({ ...prev, reason: e.target.value }))}
-        >
-          <option>Bán hàng</option>
-          <option>Chuyển kho</option>
-          <option>Hàng hỏng</option>
-          <option>Khác</option>
+          <option value="">-- Chọn khách --</option>
+          {suppliers.map(s => (
+            <option key={s._id} value={s._id}>
+              {s.name}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -274,50 +226,53 @@ export default function Export() {
         <thead>
           <tr>
             <th>Sản phẩm</th>
-            <th>Tồn kho</th>
-            <th>Số lượng xuất</th>
-            <th>Thao tác</th>
+            <th>Tồn</th>
+            <th>Số lượng</th>
+            <th></th>
           </tr>
         </thead>
+
         <tbody>
           {items.map((item, index) => (
             <tr key={index}>
               <td>
                 <select
                   value={item.productId}
-                  onChange={e => handleItemChange(index, "productId", e.target.value)}
-                  style={{ width: "100%", padding: "10px", fontSize: "14px" }}
+                  onChange={e =>
+                    handleItemChange(index, "productId", e.target.value)
+                  }
                 >
                   <option value="">-- Chọn sản phẩm --</option>
-                  {products.length === 0 ? (
-                    <option disabled>Đang tải sản phẩm...</option>
-                  ) : (
-                    products.map(p => (
-                      <option key={p._id} value={p._id}>
-                        {p.name} {p.code ? `(${p.code})` : ''}
-                      </option>
-                    ))
-                  )}
+                  {products.map(p => (
+                    <option key={p._id} value={p._id}>
+                      {p.name} ({p.code})
+                    </option>
+                  ))}
                 </select>
               </td>
-              <td className="stock">{stockMap[item.productId] ?? "—"}</td>
+
+              <td>{stockMap[item.productId] ?? "-"}</td>
+
               <td>
                 <input
                   type="number"
                   min="1"
                   value={item.quantity}
-                  onChange={e => handleItemChange(index, "quantity", Number(e.target.value))}
+                  onChange={e =>
+                    handleItemChange(index, "quantity", Number(e.target.value))
+                  }
                 />
               </td>
+
               <td>
-                <button className="remove-btn" onClick={() => removeItem(index)}>Xóa</button>
+                <button onClick={() => removeItem(index)}>Xóa</button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      <button className="add-btn" onClick={addItem}>+ Thêm dòng sản phẩm</button>
+      <button onClick={addItem}>+ Thêm</button>
 
       <textarea
         placeholder="Ghi chú..."
@@ -325,12 +280,9 @@ export default function Export() {
         onChange={e => setForm(prev => ({ ...prev, note: e.target.value }))}
       />
 
-      <button className="submit-btn" onClick={handleSubmit} disabled={loading}>
-        {loading ? "Đang xử lý..." : "✅ Tạo phiếu xuất kho"}
+      <button onClick={handleSubmit} disabled={loading}>
+        {loading ? "Đang xử lý..." : "Xuất kho"}
       </button>
-
-      <h3>📜 Lịch sử xuất kho</h3>
-      {/* Bạn có thể bổ sung phần lịch sử sau nếu cần */}
     </div>
   );
 }
