@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import Select from "react-select";
 import { importApi } from "../../services/importApi";
 import { supplierApi } from "../../services/supplierApi";
 import { warehouseApi } from "../../services/warehouseApi";
@@ -7,12 +8,12 @@ import "./Import.css";
 const Import = () => {
   const [suppliers, setSuppliers] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
-  const [imports, setImports] = useState([]);
   const [products, setProducts] = useState([]);
+  const [imports, setImports] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // Form tạo phiếu
+  // Form
   const [formData, setFormData] = useState({
     code: `NH-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(1000 + Math.random() * 9000)}`,
     supplierId: "",
@@ -23,7 +24,13 @@ const Import = () => {
 
   const [totalAmount, setTotalAmount] = useState(0);
 
-  // Load dữ liệu ban đầu
+  // Modal thêm nhanh
+  const [showSupplierModal, setShowSupplierModal] = useState(false);
+  const [showWarehouseModal, setShowWarehouseModal] = useState(false);
+  const [newSupplierName, setNewSupplierName] = useState("");
+  const [newWarehouseName, setNewWarehouseName] = useState("");
+
+  // Load dữ liệu
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -31,7 +38,7 @@ const Import = () => {
           supplierApi.getAll({ status: "active" }),
           warehouseApi.getAll({ status: "active" }),
           fetch("http://localhost:4001/products").then((r) => r.json()),
-          importApi.getAll({ search }),
+          importApi.getAll(),
         ]);
 
         setSuppliers(supRes.data.data || []);
@@ -45,7 +52,34 @@ const Import = () => {
       }
     };
     loadData();
-  }, [search]);
+  }, []);
+
+  // Lọc lịch sử phiếu nhập theo từ khóa tìm kiếm
+  const filteredImports = React.useMemo(() => {
+    if (!search.trim()) return imports;
+
+    const keyword = search.toLowerCase().trim();
+
+    return imports.filter((imp) => {
+      const supplierName =
+        suppliers.find((s) => s._id === imp.supplierId)?.name?.toLowerCase() ||
+        "";
+      const warehouseName =
+        warehouses
+          .find((w) => w._id === imp.warehouseId)
+          ?.name?.toLowerCase() || "";
+      const importDateStr = new Date(imp.importDate)
+        .toLocaleDateString("vi-VN")
+        .toLowerCase();
+
+      return (
+        imp.code.toLowerCase().includes(keyword) ||
+        supplierName.includes(keyword) ||
+        warehouseName.includes(keyword) ||
+        importDateStr.includes(keyword)
+      );
+    });
+  }, [imports, suppliers, warehouses, search]);
 
   // Tính tổng tiền
   useEffect(() => {
@@ -105,9 +139,8 @@ const Import = () => {
 
       const res = await importApi.create(payload);
       if (res.data.success) {
-        alert("✅ Tạo phiếu nhập kho thành công! Tồn kho đã được cập nhật.");
+        alert("✅ Tạo phiếu nhập kho thành công!");
 
-        // Reset form
         setFormData({
           code: `NH-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(1000 + Math.random() * 9000)}`,
           supplierId: "",
@@ -116,7 +149,6 @@ const Import = () => {
           items: [{ productCode: "", quantity: 1, unitPrice: 0 }],
         });
 
-        // Refresh lịch sử
         const fresh = await importApi.getAll({ search });
         setImports(fresh.data.data || []);
       }
@@ -124,6 +156,56 @@ const Import = () => {
       alert("❌ Lỗi: " + (err.response?.data?.message || err.message));
     }
   };
+
+  // Thêm nhanh Nhà cung cấp
+  const handleAddSupplier = async () => {
+    if (!newSupplierName.trim()) return alert("Vui lòng nhập tên nhà cung cấp");
+    try {
+      const res = await supplierApi.create({
+        name: newSupplierName.trim(),
+        status: "active",
+      });
+      setSuppliers([...suppliers, res.data.data]);
+      setFormData((prev) => ({ ...prev, supplierId: res.data.data._id }));
+      setNewSupplierName("");
+      setShowSupplierModal(false);
+    } catch (err) {
+      alert("Không thể thêm nhà cung cấp");
+    }
+  };
+
+  // Thêm nhanh Kho
+  const handleAddWarehouse = async () => {
+    if (!newWarehouseName.trim()) return alert("Vui lòng nhập tên kho");
+    try {
+      const res = await warehouseApi.create({
+        name: newWarehouseName.trim(),
+        status: "active",
+      });
+      setWarehouses([...warehouses, res.data.data]);
+      setFormData((prev) => ({ ...prev, warehouseId: res.data.data._id }));
+      setNewWarehouseName("");
+      setShowWarehouseModal(false);
+    } catch (err) {
+      alert("Không thể thêm kho");
+    }
+  };
+
+  // Chuẩn bị options cho react-select
+  const supplierOptions = suppliers.map((s) => ({
+    value: s._id,
+    label: `${s.name} ${s.phone ? `(${s.phone})` : ""}`,
+  }));
+
+  const warehouseOptions = warehouses.map((w) => ({
+    value: w._id,
+    label: w.name,
+  }));
+
+  const productOptions = products.map((p) => ({
+    value: p.code,
+    label: `${p.code} - ${p.name} (Tồn: ${p.stock || 0})`,
+  }));
 
   if (loading) return <div className="loading">Đang tải dữ liệu...</div>;
 
@@ -139,7 +221,6 @@ const Import = () => {
         </div>
       </div>
 
-      {/* Form tạo phiếu mới */}
       <div className="im-form-card">
         <h2>Tạo phiếu nhập kho mới</h2>
         <form onSubmit={handleSubmit}>
@@ -148,53 +229,71 @@ const Import = () => {
               <label>Mã phiếu nhập</label>
               <input type="text" value={formData.code} readOnly />
             </div>
+
+            {/* Nhà cung cấp với tìm kiếm */}
             <div className="im-form-group">
               <label>
                 Nhà cung cấp <span className="required">*</span>
               </label>
-              <select
-                value={formData.supplierId}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    supplierId: e.target.value,
-                  }))
-                }
-                required
-              >
-                <option value="">-- Chọn nhà cung cấp --</option>
-                {suppliers.map((s) => (
-                  <option key={s._id} value={s._id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
+              <div className="select-with-add">
+                <Select
+                  options={supplierOptions}
+                  value={supplierOptions.find(
+                    (opt) => opt.value === formData.supplierId,
+                  )}
+                  onChange={(selected) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      supplierId: selected?.value || "",
+                    }))
+                  }
+                  placeholder="Tìm theo tên hoặc số điện thoại..."
+                  isSearchable
+                  className="react-select"
+                />
+                <button
+                  type="button"
+                  className="btn-add-inline"
+                  onClick={() => setShowSupplierModal(true)}
+                >
+                  +
+                </button>
+              </div>
             </div>
+
+            {/* Kho với tìm kiếm */}
             <div className="im-form-group">
               <label>
                 Kho <span className="required">*</span>
               </label>
-              <select
-                value={formData.warehouseId}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    warehouseId: e.target.value,
-                  }))
-                }
-                required
-              >
-                <option value="">-- Chọn kho --</option>
-                {warehouses.map((w) => (
-                  <option key={w._id} value={w._id}>
-                    {w.name}
-                  </option>
-                ))}
-              </select>
+              <div className="select-with-add">
+                <Select
+                  options={warehouseOptions}
+                  value={warehouseOptions.find(
+                    (opt) => opt.value === formData.warehouseId,
+                  )}
+                  onChange={(selected) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      warehouseId: selected?.value || "",
+                    }))
+                  }
+                  placeholder="Tìm kho..."
+                  isSearchable
+                  className="react-select"
+                />
+                <button
+                  type="button"
+                  className="btn-add-inline"
+                  onClick={() => setShowWarehouseModal(true)}
+                >
+                  +
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Bảng chi tiết sản phẩm */}
+          {/* Bảng chi tiết sản phẩm nhập */}
           <div className="items-section">
             <h3>Chi tiết sản phẩm nhập</h3>
             <table className="items-table">
@@ -202,71 +301,97 @@ const Import = () => {
                 <tr>
                   <th>Sản phẩm</th>
                   <th>Số lượng</th>
-                  <th>Đơn giá (₫)</th>
+                  <th>Giá bán (₫)</th>
+                  <th>Giá vốn (nhập) (₫)</th>
                   <th>Thành tiền</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {formData.items.map((item, index) => (
-                  <tr key={index}>
-                    <td>
-                      <select
-                        value={item.productCode}
-                        onChange={(e) =>
-                          handleItemChange(index, "productCode", e.target.value)
-                        }
-                        required
-                      >
-                        <option value="">-- Chọn sản phẩm --</option>
-                        {products.map((p) => (
-                          <option key={p.code} value={p.code}>
-                            {p.code} - {p.name} (Tồn: {p.stock || 0})
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        min="1"
-                        value={item.quantity}
-                        onChange={(e) =>
-                          handleItemChange(index, "quantity", e.target.value)
-                        }
-                        required
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        min="0"
-                        step="100"
-                        value={item.unitPrice}
-                        onChange={(e) =>
-                          handleItemChange(index, "unitPrice", e.target.value)
-                        }
-                        required
-                      />
-                    </td>
-                    <td className="total-cell">
-                      {(
-                        Number(item.quantity) * Number(item.unitPrice)
-                      ).toLocaleString("vi-VN")}{" "}
-                      ₫
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className="btn-remove"
-                        onClick={() => removeItemRow(index)}
-                        disabled={formData.items.length === 1}
-                      >
-                        Xóa
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {formData.items.map((item, index) => {
+                  const selectedProduct = products.find(
+                    (p) => p.code === item.productCode,
+                  );
+                  return (
+                    <tr key={index}>
+                      <td>
+                        <Select
+                          options={productOptions}
+                          value={
+                            productOptions.find(
+                              (opt) => opt.value === item.productCode,
+                            ) || null
+                          }
+                          onChange={(selected) =>
+                            handleItemChange(
+                              index,
+                              "productCode",
+                              selected ? selected.value : "",
+                            )
+                          }
+                          placeholder="Tìm và chọn sản phẩm..."
+                          isSearchable
+                          className="react-select-container"
+                          classNamePrefix="react-select"
+                          menuPortalTarget={document.body}
+                          menuPosition="fixed"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) =>
+                            handleItemChange(index, "quantity", e.target.value)
+                          }
+                          required
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          value={
+                            selectedProduct
+                              ? selectedProduct.price
+                              : item.unitPrice
+                          }
+                          readOnly
+                          className="readonly-input"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="0"
+                          step="100"
+                          value={item.unitPrice}
+                          onChange={(e) =>
+                            handleItemChange(index, "unitPrice", e.target.value)
+                          }
+                          required
+                          placeholder="Giá nhập thực tế"
+                        />
+                      </td>
+                      <td className="total-cell">
+                        {(
+                          Number(item.quantity) * Number(item.unitPrice)
+                        ).toLocaleString("vi-VN")}{" "}
+                        ₫
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn-remove"
+                          onClick={() => removeItemRow(index)}
+                          disabled={formData.items.length === 1}
+                        >
+                          Xóa
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
 
@@ -305,7 +430,7 @@ const Import = () => {
         <h2>Lịch sử phiếu nhập kho</h2>
         <input
           className="im-search"
-          placeholder="Tìm theo mã phiếu hoặc nhà cung cấp..."
+          placeholder="Tìm theo mã phiếu, ngày nhập, nhà cung cấp, kho..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -323,41 +448,87 @@ const Import = () => {
             </tr>
           </thead>
           <tbody>
-            {imports.length === 0 ? (
+            {filteredImports.length === 0 ? (
               <tr>
                 <td
                   colSpan="7"
-                  style={{ textAlign: "center", padding: "40px" }}
+                  style={{ textAlign: "center", padding: "60px" }}
                 >
-                  Chưa có phiếu nhập nào
+                  Không tìm thấy phiếu nhập nào
                 </td>
               </tr>
             ) : (
-              imports.map((imp) => (
-                <tr key={imp._id}>
-                  <td>
-                    <strong>{imp.code}</strong>
-                  </td>
-                  <td>
-                    {new Date(imp.importDate).toLocaleDateString("vi-VN")}
-                  </td>
-                  <td>
-                    {suppliers.find((s) => s._id === imp.supplierId)?.name ||
-                      imp.supplierId}
-                  </td>
-                  <td>
-                    {warehouses.find((w) => w._id === imp.warehouseId)?.name ||
-                      imp.warehouseId}
-                  </td>
-                  <td>{imp.items.length} mặt hàng</td>
-                  <td>{imp.totalAmount.toLocaleString("vi-VN")} ₫</td>
-                  <td>{imp.notes || "—"}</td>
-                </tr>
-              ))
+              filteredImports.map((imp) => {
+                const supplierName =
+                  suppliers.find((s) => s._id === imp.supplierId)?.name || "—";
+                const warehouseName =
+                  warehouses.find((w) => w._id === imp.warehouseId)?.name ||
+                  "—";
+
+                return (
+                  <tr key={imp._id}>
+                    <td>
+                      <strong>{imp.code}</strong>
+                    </td>
+                    <td>
+                      {new Date(imp.importDate).toLocaleDateString("vi-VN")}
+                    </td>
+                    <td>{supplierName}</td>
+                    <td>{warehouseName}</td>
+                    <td>{imp.items.length} mặt hàng</td>
+                    <td>{imp.totalAmount?.toLocaleString("vi-VN")} ₫</td>
+                    <td>{imp.notes || "—"}</td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
       </div>
+
+      {/* Modal thêm Nhà cung cấp */}
+      {showSupplierModal && (
+        <div
+          className="modal-overlay"
+          onClick={() => setShowSupplierModal(false)}
+        >
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>Thêm nhà cung cấp mới</h3>
+            <input
+              type="text"
+              placeholder="Tên nhà cung cấp"
+              value={newSupplierName}
+              onChange={(e) => setNewSupplierName(e.target.value)}
+            />
+            <div className="modal-buttons">
+              <button onClick={() => setShowSupplierModal(false)}>Hủy</button>
+              <button onClick={handleAddSupplier}>Thêm</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal thêm Kho */}
+      {showWarehouseModal && (
+        <div
+          className="modal-overlay"
+          onClick={() => setShowWarehouseModal(false)}
+        >
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>Thêm kho mới</h3>
+            <input
+              type="text"
+              placeholder="Tên kho"
+              value={newWarehouseName}
+              onChange={(e) => setNewWarehouseName(e.target.value)}
+            />
+            <div className="modal-buttons">
+              <button onClick={() => setShowWarehouseModal(false)}>Hủy</button>
+              <button onClick={handleAddWarehouse}>Thêm</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

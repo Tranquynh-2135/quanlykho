@@ -8,13 +8,9 @@ import "./Products.css";
 const EMPTY_FORM = {
   code: "",
   name: "",
-  price: "",
-  costPrice: "",
   minStock: "10",
   maxStock: "",
   location: "",
-  supplierId: "",
-  warehouseId: "",
   expiryDays: "",
   description: "",
   status: "active",
@@ -22,8 +18,8 @@ const EMPTY_FORM = {
 
 const Products = () => {
   const [products, setProducts] = useState([]);
-  const [suppliers, setSuppliers] = useState([]); // dropdown
-  const [warehouses, setWarehouses] = useState([]); // dropdown
+  const [suppliers, setSuppliers] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -40,16 +36,14 @@ const Products = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const [currentHash, setCurrentHash] = useState("");
 
-  // Load suppliers + warehouses cho dropdown
+  // Load dropdown
   useEffect(() => {
     supplierApi
       .getAll({ status: "active" })
-      .then((r) => setSuppliers(r.data.data || []))
-      .catch(() => {});
+      .then((r) => setSuppliers(r.data.data || []));
     warehouseApi
       .getAll({ status: "active" })
-      .then((r) => setWarehouses(r.data.data || []))
-      .catch(() => {});
+      .then((r) => setWarehouses(r.data.data || []));
   }, []);
 
   const fetchProducts = useCallback(async () => {
@@ -62,7 +56,7 @@ const Products = () => {
       setProducts(res.data.data || []);
       setError(null);
     } catch {
-      setError("Không thể tải danh sách vật tư. Vui lòng kiểm tra backend.");
+      setError("Không thể tải danh sách vật tư.");
     } finally {
       setLoading(false);
     }
@@ -72,7 +66,6 @@ const Products = () => {
     fetchProducts();
   }, [fetchProducts]);
 
-  // Helper: lấy tên supplier/warehouse từ id
   const supplierName = (id) => suppliers.find((s) => s._id === id)?.name || "—";
   const warehouseName = (id) =>
     warehouses.find((w) => w._id === id)?.name || "—";
@@ -92,13 +85,9 @@ const Products = () => {
     setFormData({
       code: p.code || "",
       name: p.name || "",
-      price: p.price ?? "",
-      costPrice: p.costPrice ?? "",
       minStock: p.minStock ?? 10,
       maxStock: p.maxStock ?? "",
       location: p.location || "",
-      supplierId: p.supplierId || "",
-      warehouseId: p.warehouseId || "",
       expiryDays: p.expiryDays ?? "",
       description: p.description || "",
       status: p.status || "active",
@@ -131,10 +120,6 @@ const Products = () => {
       return setFormError("Mã vật tư không được trống.");
     if (!formData.name.trim())
       return setFormError("Tên vật tư không được trống.");
-    if (isNaN(Number(formData.price)))
-      return setFormError("Giá bán không hợp lệ.");
-    if (isNaN(Number(formData.costPrice)))
-      return setFormError("Giá vốn không hợp lệ.");
 
     setSubmitting(true);
     try {
@@ -146,8 +131,6 @@ const Products = () => {
 
       const payload = {
         ...formData,
-        price: Number(formData.price),
-        costPrice: Number(formData.costPrice),
         minStock: Number(formData.minStock) || 10,
         maxStock:
           formData.maxStock !== "" ? Number(formData.maxStock) : undefined,
@@ -162,9 +145,7 @@ const Products = () => {
       setShowModal(false);
       fetchProducts();
     } catch (err) {
-      setFormError(
-        err.response?.data?.message || "Có lỗi xảy ra, vui lòng thử lại.",
-      );
+      setFormError(err.response?.data?.message || "Có lỗi xảy ra.");
     } finally {
       setSubmitting(false);
     }
@@ -178,7 +159,7 @@ const Products = () => {
       setDeleteTarget(null);
       fetchProducts();
     } catch {
-      alert("Xóa thất bại. Vui lòng thử lại.");
+      alert("Xóa thất bại.");
     } finally {
       setDeleting(false);
     }
@@ -191,7 +172,7 @@ const Products = () => {
 
   return (
     <div className="pp-root">
-      {/* Header */}
+      {/* Header giữ nguyên */}
       <div className="pp-header">
         <div className="pp-title-block">
           <span className="pp-title-icon">📦</span>
@@ -205,7 +186,7 @@ const Products = () => {
         </button>
       </div>
 
-      {/* Filters */}
+      {/* Filters giữ nguyên */}
       <div className="pp-filters">
         <div className="pp-search-wrap">
           <span className="pp-search-icon">🔍</span>
@@ -228,7 +209,7 @@ const Products = () => {
         </select>
       </div>
 
-      {/* Table */}
+      {/* Table - Sửa cột Tồn kho */}
       {loading ? (
         <div className="pp-state">
           <div className="pp-spinner" />
@@ -239,7 +220,7 @@ const Products = () => {
       ) : products.length === 0 ? (
         <div className="pp-state pp-empty-state">
           <span style={{ fontSize: 48 }}>🗃️</span>
-          <p>Chưa có vật tư nào. Hãy thêm vật tư đầu tiên!</p>
+          <p>Chưa có vật tư nào.</p>
         </div>
       ) : (
         <div className="pp-table-wrap">
@@ -285,10 +266,12 @@ const Products = () => {
                     )}
                   </td>
                   <td className="pp-price">
-                    {p.price.toLocaleString("vi-VN")} ₫
+                    {p.price ? p.price.toLocaleString("vi-VN") + " ₫" : "—"}
                   </td>
                   <td className="pp-cost">
-                    {p.costPrice?.toLocaleString("vi-VN")} ₫
+                    {p.costPrice
+                      ? p.costPrice.toLocaleString("vi-VN") + " ₫"
+                      : "—"}
                   </td>
                   <td>
                     {p.expiryDays ? (
@@ -300,7 +283,6 @@ const Products = () => {
                     )}
                   </td>
                   <td>
-                    {/* sẽ load từ stock-service */}
                     <span
                       className={`pp-stock ${p.stock <= (p.minStock || 10) ? "pp-stock-low" : ""}`}
                     >
@@ -341,7 +323,7 @@ const Products = () => {
         </div>
       )}
 
-      {/* Modal */}
+      {/* Modal form đã rút gọn */}
       {showModal && (
         <div className="pp-overlay" onClick={() => setShowModal(false)}>
           <div className="pp-modal" onClick={(e) => e.stopPropagation()}>
@@ -362,7 +344,7 @@ const Products = () => {
               {formError && <div className="pp-form-error">⚠️ {formError}</div>}
               <div className="pp-form-grid">
                 <label>
-                  Mã vật tư *
+                  Mã vật tư *{" "}
                   <input
                     name="code"
                     value={formData.code}
@@ -371,166 +353,76 @@ const Products = () => {
                     disabled={modalMode === "edit"}
                   />
                 </label>
-
                 <label>
-                  Tên vật tư *
+                  Tên vật tư *{" "}
                   <input
                     name="name"
                     value={formData.name}
                     onChange={handleFormChange}
-                    placeholder="Tên vật tư"
                   />
                 </label>
-
                 <label>
-                  Giá bán (₫) *
-                  <input
-                    name="price"
-                    type="number"
-                    min="0"
-                    value={formData.price}
-                    onChange={handleFormChange}
-                    placeholder="0"
-                  />
-                </label>
-
-                <label>
-                  Giá vốn (₫) *
-                  <input
-                    name="costPrice"
-                    type="number"
-                    min="0"
-                    value={formData.costPrice}
-                    onChange={handleFormChange}
-                    placeholder="0"
-                  />
-                </label>
-
-                <label>
-                  Tồn tối thiểu
+                  Tồn tối thiểu{" "}
                   <input
                     name="minStock"
                     type="number"
-                    min="0"
                     value={formData.minStock}
                     onChange={handleFormChange}
-                    placeholder="10"
                   />
                 </label>
-
                 <label>
-                  Tồn tối đa
+                  Tồn tối đa{" "}
                   <input
                     name="maxStock"
                     type="number"
-                    min="0"
                     value={formData.maxStock}
                     onChange={handleFormChange}
-                    placeholder="Không giới hạn"
                   />
                 </label>
-
                 <label>
-                  Hạn sử dụng (số ngày)
+                  Hạn sử dụng (ngày){" "}
                   <input
                     name="expiryDays"
                     type="number"
-                    min="1"
                     value={formData.expiryDays}
                     onChange={handleFormChange}
-                    placeholder="VD: 180 (để trống nếu không có HSD)"
                   />
                 </label>
-
                 <label>
-                  Vị trí
+                  Vị trí{" "}
                   <input
                     name="location"
                     value={formData.location}
                     onChange={handleFormChange}
-                    placeholder="Kệ A1, Tầng 2..."
                   />
                 </label>
-
-                {/* Dropdown nhà cung cấp */}
-                <label>
-                  Nhà cung cấp
-                  <select
-                    name="supplierId"
-                    value={formData.supplierId}
-                    onChange={handleFormChange}
-                  >
-                    <option value="">— Chọn nhà cung cấp —</option>
-                    {suppliers.map((s) => (
-                      <option key={s._id} value={s._id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                {/* Dropdown kho */}
-                <label>
-                  Kho
-                  <select
-                    name="warehouseId"
-                    value={formData.warehouseId}
-                    onChange={handleFormChange}
-                  >
-                    <option value="">— Chọn kho —</option>
-                    {warehouses.map((w) => (
-                      <option key={w._id} value={w._id}>
-                        {w.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label>
-                  Trạng thái
-                  <select
-                    name="status"
-                    value={formData.status}
-                    onChange={handleFormChange}
-                  >
-                    <option value="active">Hoạt động</option>
-                    <option value="inactive">Ngừng kinh doanh</option>
-                    <option value="discontinued">Ngừng sản xuất</option>
-                  </select>
-                </label>
-
                 <label className="pp-full-col">
-                  Ảnh vật tư
+                  Ảnh vật tư{" "}
                   <input
                     type="file"
-                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    accept="image/*"
                     onChange={handleImageChange}
-                    style={{ padding: "6px 12px" }}
                   />
-                  {imagePreview && (
-                    <img
-                      src={imagePreview}
-                      alt="preview"
-                      style={{
-                        width: 80,
-                        height: 80,
-                        objectFit: "cover",
-                        borderRadius: 8,
-                        border: "1px solid var(--border)",
-                        marginTop: 8,
-                      }}
-                    />
-                  )}
                 </label>
-
+                {imagePreview && (
+                  <img
+                    src={imagePreview}
+                    alt="preview"
+                    style={{
+                      width: 80,
+                      height: 80,
+                      objectFit: "cover",
+                      borderRadius: 8,
+                    }}
+                  />
+                )}
                 <label className="pp-full-col">
-                  Mô tả
+                  Mô tả{" "}
                   <textarea
                     name="description"
                     value={formData.description}
                     onChange={handleFormChange}
                     rows={3}
-                    placeholder="Mô tả vật tư..."
                   />
                 </label>
               </div>
@@ -559,7 +451,7 @@ const Products = () => {
         </div>
       )}
 
-      {/* Delete Confirm */}
+      {/* Delete confirm giữ nguyên */}
       {deleteTarget && (
         <div className="pp-overlay" onClick={() => setDeleteTarget(null)}>
           <div className="pp-confirm" onClick={(e) => e.stopPropagation()}>
@@ -570,7 +462,6 @@ const Products = () => {
               <br />
               <strong>"{deleteTarget.name}"</strong>?
             </p>
-            <p className="pp-confirm-warn">Hành động này không thể hoàn tác.</p>
             <div className="pp-confirm-actions">
               <button
                 className="pp-btn pp-btn-ghost"
