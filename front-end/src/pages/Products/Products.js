@@ -323,7 +323,7 @@ const Products = () => {
         </div>
       )}
 
-      {/* Modal form đã rút gọn */}
+      {/* Modal form  */}
       {showModal && (
         <div className="pp-overlay" onClick={() => setShowModal(false)}>
           <div className="pp-modal" onClick={(e) => e.stopPropagation()}>
@@ -451,7 +451,7 @@ const Products = () => {
         </div>
       )}
 
-      {/* Delete confirm giữ nguyên */}
+      {/* Delete confirm */}
       {deleteTarget && (
         <div className="pp-overlay" onClick={() => setDeleteTarget(null)}>
           <div className="pp-confirm" onClick={(e) => e.stopPropagation()}>

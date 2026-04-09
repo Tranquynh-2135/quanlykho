@@ -451,3 +451,28 @@
 .items-table {
   overflow: visible !important;
 }
+
+/* ==================== Ô GHI CHÚ ==================== */
+.im-form-group textarea {
+  width: 100% !important;
+  min-height: 120px;
+  resize: vertical;
+  padding: 12px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.im-form-group textarea:focus {
+  border-color: #3b6ef8;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 110, 248, 0.15);
+}
+
+.im-form-group label {
+  font-weight: 600;
+  color: #1e2937;
+  margin-bottom: 8px;
+  display: block;
+}

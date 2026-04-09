@@ -4,7 +4,6 @@ const importSchema = new mongoose.Schema(
   {
     code: {
       type: String,
-      required: true,
       unique: true,
     },
     supplierId: { type: String, required: true },

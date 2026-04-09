@@ -34,10 +34,29 @@ const getAllImports = async (req, res, next) => {
   }
 };
 
-// ====================== CREATE IMPORT (tự động tăng stock) ======================
+// ====================== CREATE IMPORT  ======================
 const createImport = async (req, res, next) => {
   try {
-    const { code, supplierId, warehouseId, items, notes } = req.body;
+    const { supplierId, warehouseId, items, notes } = req.body;
+
+    if (!supplierId || !warehouseId) {
+      return res.status(400).json({
+        success: false,
+        message: "supplierId và warehouseId là bắt buộc",
+      });
+    }
+
+    // Tự sinh mã phiếu
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "");
+    const timeSuffix =
+      String(now.getHours()).padStart(2, "0") +
+      String(now.getMinutes()).padStart(2, "0") +
+      String(now.getSeconds()).padStart(2, "0");
+
+    const randomPart = Math.floor(10 + Math.random() * 90);
+
+    const code = `NH-${dateStr}-${timeSuffix}${randomPart}`;
 
     let totalAmount = 0;
     const processedItems = items.map((item) => {
@@ -58,11 +77,11 @@ const createImport = async (req, res, next) => {
 
     const savedImport = await newImport.save();
 
-    // Tăng stock
+    // Tăng stock...
     for (const item of processedItems) {
       try {
         await axios.patch(
-          `${PRODUCT_SERVICE_URL}/products/increase-stock/${item.productCode}`,
+          `http://localhost:4001/products/increase-stock/${item.productCode}`,
           {
             quantity: item.quantity,
           },
@@ -75,7 +94,8 @@ const createImport = async (req, res, next) => {
     res.status(201).json({
       success: true,
       data: savedImport,
-      message: "Nhập kho thành công và đã cập nhật tồn kho!",
+      message: "Nhập kho thành công!",
+      code: code,
     });
   } catch (err) {
     next(err);

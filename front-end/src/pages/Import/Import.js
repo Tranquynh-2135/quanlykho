@@ -15,7 +15,6 @@ const Import = () => {
 
   // Form
   const [formData, setFormData] = useState({
-    code: `NH-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(1000 + Math.random() * 9000)}`,
     supplierId: "",
     warehouseId: "",
     notes: "",
@@ -126,7 +125,6 @@ const Import = () => {
 
     try {
       const payload = {
-        code: formData.code,
         supplierId: formData.supplierId,
         warehouseId: formData.warehouseId,
         items: formData.items.map((item) => ({
@@ -138,17 +136,21 @@ const Import = () => {
       };
 
       const res = await importApi.create(payload);
-      if (res.data.success) {
-        alert("✅ Tạo phiếu nhập kho thành công!");
 
+      if (res.data.success) {
+        const newCode = res.data.code || res.data.data.code;
+
+        alert(`✅ Tạo phiếu nhập kho thành công!\nMã phiếu: ${newCode}`);
+
+        // Reset form
         setFormData({
-          code: `NH-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(1000 + Math.random() * 9000)}`,
           supplierId: "",
           warehouseId: "",
           notes: "",
           items: [{ productCode: "", quantity: 1, unitPrice: 0 }],
         });
 
+        // Refresh lịch sử
         const fresh = await importApi.getAll({ search });
         setImports(fresh.data.data || []);
       }
@@ -225,11 +227,6 @@ const Import = () => {
         <h2>Tạo phiếu nhập kho mới</h2>
         <form onSubmit={handleSubmit}>
           <div className="im-form-row">
-            <div className="im-form-group">
-              <label>Mã phiếu nhập</label>
-              <input type="text" value={formData.code} readOnly />
-            </div>
-
             {/* Nhà cung cấp với tìm kiếm */}
             <div className="im-form-group">
               <label>
@@ -301,7 +298,6 @@ const Import = () => {
                 <tr>
                   <th>Sản phẩm</th>
                   <th>Số lượng</th>
-                  <th>Giá bán (₫)</th>
                   <th>Giá vốn (nhập) (₫)</th>
                   <th>Thành tiền</th>
                   <th></th>
@@ -346,18 +342,6 @@ const Import = () => {
                             handleItemChange(index, "quantity", e.target.value)
                           }
                           required
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          value={
-                            selectedProduct
-                              ? selectedProduct.price
-                              : item.unitPrice
-                          }
-                          readOnly
-                          className="readonly-input"
                         />
                       </td>
                       <td>
