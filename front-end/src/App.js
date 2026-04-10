@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import Products from "./pages/Products/Products";
-import Import from "./pages/Import/Import";
+import Import from "./pages/Import/Import"
 import Suppliers from "./pages/Suppliers/Suppliers";
 import Warehouses from "./pages/Warehouses/Warehouses";
 import Users from "./pages/Users/Users";

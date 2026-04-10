@@ -25,51 +25,8 @@
 .pp-root {
   font-family: 'Be Vietnam Pro', sans-serif;
   background: #f4f6fb;
-  padding: 24px 24px;   /* giảm padding so với 28px 32px cũ */
+  padding: 24px;
   color: #1a202c;
-}
-
-/* Bảng tự co theo content, không scroll ngang */
-.pp-table-wrap {
-  background: var(--surface);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  overflow-x: auto;       /* chỉ scroll khi thực sự cần */
-}
-
-/* Font bảng nhỏ lại một chút để vừa */
-.pp-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;        /* giảm từ 14px → 13px */
-}
-
-.pp-table th {
-  padding: 10px 10px;     /* giảm từ 12px 14px */
-  font-size: 11px;
-}
-
-.pp-table td {
-  padding: 10px 10px;     /* giảm từ 12px 14px */
-  vertical-align: middle;
-}
-
-/* Ảnh nhỏ hơn */
-.pp-thumb {
-  width: 42px; height: 42px;
-  object-fit: cover;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-}
-.pp-no-img {
-  width: 42px; height: 42px;
-  border-radius: 6px;
-  background: var(--bg);
-  border: 1px dashed var(--border);
-  display: flex; align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  color: var(--text-muted);
 }
 
 /* Header */
@@ -137,70 +94,140 @@
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Table */
-.pp-table-wrap {
-  background: var(--surface); border-radius: var(--radius);
-  box-shadow: var(--shadow); overflow-x: auto;
-}
-.pp-table {
-  width: 100%; border-collapse: collapse; font-size: 14px;
-}
-.pp-table thead tr {
-  background: #f8faff; border-bottom: 2px solid var(--border);
-}
-.pp-table th {
-  padding: 12px 14px; text-align: left; font-weight: 600;
-  color: var(--text-muted); font-size: 12px; text-transform: uppercase;
-  letter-spacing: .04em; white-space: nowrap;
-}
-.pp-row { border-bottom: 1px solid var(--border); transition: background .12s; }
-.pp-row:last-child { border-bottom: none; }
-.pp-row:hover { background: #f8faff; }
-.pp-table td { padding: 12px 14px; vertical-align: middle; }
-
-.pp-thumb {
-  width: 52px; height: 52px; object-fit: cover;
-  border-radius: 8px; border: 1px solid var(--border);
-}
-.pp-no-img {
-  width: 52px; height: 52px; border-radius: 8px;
-  background: var(--bg); border: 1px dashed var(--border);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 20px; color: var(--text-muted);
-}
+/* Code badge */
 .pp-code {
   font-family: 'JetBrains Mono', monospace; font-size: 12px;
   background: var(--primary-light); color: var(--primary);
   padding: 3px 7px; border-radius: 5px;
 }
-.pp-name { font-weight: 600; max-width: 200px; }
-.pp-price { font-weight: 600; color: var(--primary); white-space: nowrap; }
-.pp-muted { color: var(--text-muted); }
-.pp-stock-low { color: var(--danger); font-weight: 600; }
-.pp-badge-warn {
-  display: inline-block; margin-left: 6px;
-  background: var(--warn-light); color: var(--warn);
-  font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 4px;
+
+/* ===== CARD GRID ===== */
+.pp-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 16px;
 }
 
-.pp-status {
-  display: inline-block; padding: 4px 10px; border-radius: 20px;
-  font-size: 12px; font-weight: 600; white-space: nowrap;
+.pp-card {
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow .2s, transform .2s;
 }
-.pp-status-active { background: #dcfce7; color: #15803d; }
-.pp-status-inactive { background: #f1f5f9; color: #64748b; }
+.pp-card:hover {
+  box-shadow: 0 4px 20px rgba(0,0,0,.12);
+  transform: translateY(-2px);
+}
+
+/* Ảnh */
+.pp-card-img-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: var(--bg);
+  overflow: hidden;
+}
+.pp-card-img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+.pp-card-no-img {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 40px; color: var(--text-muted);
+  background: var(--bg);
+}
+
+/* Badge trạng thái trên ảnh */
+.pp-card-status {
+  position: absolute;
+  top: 8px; right: 8px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.pp-status-active       { background: #dcfce7; color: #15803d; }
+.pp-status-inactive     { background: #f1f5f9; color: #64748b; }
 .pp-status-discontinued { background: #fef2f2; color: #b91c1c; }
 
-.pp-actions { display: flex; gap: 6px; }
-.pp-btn-icon {
-  width: 34px; height: 34px; border: none; border-radius: 8px;
-  cursor: pointer; font-size: 16px; display: flex; align-items: center;
-  justify-content: center; transition: all .15s;
+/* Body */
+.pp-card-body {
+  padding: 12px 14px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
 }
-.pp-btn-edit { background: var(--primary-light); }
-.pp-btn-edit:hover { background: #dbeafe; transform: scale(1.08); }
-.pp-btn-del { background: var(--danger-light); }
-.pp-btn-del:hover { background: #fecaca; transform: scale(1.08); }
+.pp-card-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Hạn sử dụng trên card */
+.pp-card-expiry {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 20px;
+  display: inline-block;
+  align-self: flex-start;
+}
+.pp-card-expiry-none {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.pp-card-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Expiry badges dùng chung */
+.expiry-badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.expiry-red     { background: #fef2f2; color: #b91c1c; }
+.expiry-yellow  { background: #fffbeb; color: #92400e; }
+.expiry-green   { background: #f0fdf4; color: #15803d; }
+.expiry-expired { background: #f1f5f9; color: #64748b; }
+
+/* Footer actions */
+.pp-card-footer {
+  display: flex;
+  gap: 6px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  background: #fafbff;
+}
+.pp-btn-icon {
+  flex: 1;
+  border: none;
+  border-radius: 6px;
+  height: 32px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  display: flex; align-items: center; justify-content: center;
+  gap: 4px;
+  transition: all .15s;
+}
+.pp-btn-edit { background: var(--primary-light); color: var(--primary); }
+.pp-btn-edit:hover { background: #dbeafe; transform: scale(1.03); }
+.pp-btn-del  { background: var(--danger-light); color: var(--danger); flex: 0 0 36px; }
+.pp-btn-del:hover { background: #fecaca; transform: scale(1.03); }
 
 /* Overlay & Modal */
 .pp-overlay {
@@ -221,6 +248,7 @@
 .pp-modal-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 20px 24px 16px; border-bottom: 1.5px solid var(--border);
+  position: sticky; top: 0; background: var(--surface); z-index: 1;
 }
 .pp-modal-header h2 { font-size: 18px; font-weight: 700; }
 .pp-modal-close {
@@ -230,6 +258,49 @@
   transition: background .15s;
 }
 .pp-modal-close:hover { background: var(--border); }
+
+/* ── Modal: Image section ── */
+.pp-modal-img-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.pp-modal-img-wrap {
+  width: 96px; height: 96px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--surface);
+}
+.pp-modal-img-preview {
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+.pp-modal-img-placeholder {
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 4px;
+  font-size: 24px; color: var(--text-muted);
+}
+.pp-modal-img-placeholder span { font-size: 11px; }
+.pp-img-upload-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px; font-weight: 600;
+  color: var(--text);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  font-family: inherit;
+}
+.pp-img-upload-btn:hover { border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
 
 /* Form */
 .pp-form { padding: 20px 24px 24px; }
@@ -256,6 +327,28 @@
   outline: none; border-color: var(--primary);
 }
 .pp-form textarea { resize: vertical; min-height: 72px; }
+.pp-form input:disabled {
+  background: var(--bg); color: var(--text-muted); cursor: not-allowed;
+}
+
+/* Expiry label nổi bật */
+.pp-expiry-label {
+  grid-column: 1 / -1;
+  background: #fffbeb;
+  border: 1.5px solid #fde68a;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.pp-expiry-label span {
+  font-size: 13px; font-weight: 700; color: #92400e;
+  display: block; margin-bottom: 6px;
+}
+.pp-expiry-label input {
+  background: #fff;
+  border-color: #fcd34d;
+}
+.pp-expiry-label input:focus { border-color: #f59e0b; }
+
 .pp-form-footer {
   display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;
   padding-top: 16px; border-top: 1.5px solid var(--border);
@@ -283,56 +376,5 @@
   .pp-root { padding: 16px; }
   .pp-form-grid { grid-template-columns: 1fr; }
   .pp-title { font-size: 20px; }
+  .pp-card-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 }
-
-.pp-cost { 
-  color: var(--text-muted); 
-  font-size: 13px; 
-  white-space: nowrap; 
-}
-
-.pp-form input[type="file"] {
-  padding: 6px 12px;
-  background: var(--bg);
-  cursor: pointer;
-}
-
-.pp-form input[disabled] {
-  background: var(--bg);
-  color: var(--text-muted);
-  cursor: not-allowed;
-}
-.pp-desc {
-  font-size: 12px;
-  color: var(--text-muted);
-  font-weight: 400;
-  margin-top: 3px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 200px;
-}
-.pp-cost {
-  color: var(--text-muted);
-  font-size: 13px;
-  white-space: nowrap;
-}
-.pp-expiry-days {
-  font-size: 13px;
-  color: var(--text-muted);
-  background: var(--bg);
-  padding: 2px 8px;
-  border-radius: 20px;
-  border: 1px solid var(--border);
-}
-.pp-form input[type="file"] {
-  padding: 6px 12px;
-  background: var(--bg);
-  cursor: pointer;
-}
-.pp-form input:disabled {
-  background: var(--bg);
-  color: var(--text-muted);
-  cursor: not-allowed;
-}
-

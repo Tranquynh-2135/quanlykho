@@ -4,15 +4,10 @@ const importSchema = new mongoose.Schema(
   {
     code: {
       type: String,
-      required: true,
       unique: true,
     },
     supplierId: { type: String, required: true },
     warehouseId: { type: String, required: true },
-    supplier: {
-      type: String,
-      required: false,
-    },
     importDate: {
       type: Date,
       default: Date.now,
