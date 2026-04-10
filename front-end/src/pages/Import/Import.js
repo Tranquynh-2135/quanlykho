@@ -211,6 +211,28 @@ const Import = () => {
 
   if (loading) return <div className="loading">Đang tải dữ liệu...</div>;
 
+  const handleDeleteImport = async (id, code) => {
+    if (!window.confirm(`Bạn có chắc muốn xóa phiếu nhập kho ${code} không?`)) {
+      return;
+    }
+
+    try {
+      const res = await importApi.delete(id); // ← Truyền id vào đây
+
+      if (res.data.success) {
+        alert(`✅ Đã xóa phiếu ${code} thành công và đã cập nhật tồn kho!`);
+
+        // Refresh danh sách
+        const fresh = await importApi.getAll();
+        setImports(fresh.data.data || []);
+      }
+    } catch (err) {
+      alert(
+        "❌ Lỗi khi xóa phiếu: " + (err.response?.data?.message || err.message),
+      );
+    }
+  };
+
   return (
     <div className="im-root">
       <div className="im-header">
@@ -429,6 +451,7 @@ const Import = () => {
               <th>Số mặt hàng</th>
               <th>Tổng tiền</th>
               <th>Ghi chú</th>
+              <th>Thao tác</th>
             </tr>
           </thead>
           <tbody>
@@ -462,6 +485,15 @@ const Import = () => {
                     <td>{imp.items.length} mặt hàng</td>
                     <td>{imp.totalAmount?.toLocaleString("vi-VN")} ₫</td>
                     <td>{imp.notes || "—"}</td>
+                    {/* Cột Thao tác  */}
+                    <td>
+                      <button
+                        className="btn-delete"
+                        onClick={() => handleDeleteImport(imp._id, imp.code)}
+                      >
+                        Xóa
+                      </button>
+                    </td>
                   </tr>
                 );
               })

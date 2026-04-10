@@ -476,3 +476,17 @@
   margin-bottom: 8px;
   display: block;
 }
+
+.btn-delete {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.btn-delete:hover {
+  background: #dc2626;
+}

@@ -102,4 +102,45 @@ const createImport = async (req, res, next) => {
   }
 };
 
-module.exports = { getAllImports, createImport };
+// ====================== DELETE IMPORT ======================
+const deleteImport = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const importDoc = await Import.findById(id);
+    if (!importDoc) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy phiếu nhập kho",
+      });
+    }
+
+    // Trừ stock trước khi xóa phiếu
+    for (const item of importDoc.items) {
+      try {
+        await axios.patch(
+          `http://localhost:4001/products/increase-stock/${item.productCode}`,
+          { quantity: -item.quantity }, // Trừ tồn kho
+        );
+      } catch (err) {
+        console.error(`Không trừ được stock cho ${item.productCode}`);
+      }
+    }
+
+    await Import.findByIdAndDelete(id);
+
+    res.json({
+      success: true,
+      message: `Đã xóa phiếu nhập kho ${importDoc.code} và cập nhật tồn kho`,
+      data: { id },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = {
+  getAllImports,
+  createImport,
+  deleteImport,
+};
