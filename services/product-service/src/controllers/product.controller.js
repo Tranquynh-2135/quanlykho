@@ -84,4 +84,33 @@ const uploadImage = (req, res) => {
   res.json({ success: true, imageHash: req.file.filename });
 };
 
-module.exports = { getAllProducts, getProductById, createProduct, updateProduct, deleteProduct, uploadImage };
+// INCREASE STOCK
+const increaseStock = async (req, res, next) => {
+  try {
+    const { code } = req.params;
+    const { quantity } = req.body;
+
+    const product = await Product.findOne({ code });
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy sản phẩm",
+      });
+    }
+
+    product.stock = (product.stock || 0) + Number(quantity);
+    await product.save();
+
+    res.json({
+      success: true,
+      data: product,
+      message: "Tăng tồn kho thành công",
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { getAllProducts, getProductById, createProduct, updateProduct, deleteProduct, uploadImage, increaseStock };
+

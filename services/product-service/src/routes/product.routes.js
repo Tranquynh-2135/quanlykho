@@ -25,5 +25,6 @@ router.post("/",      ctrl.createProduct);
 router.get("/:id",    ctrl.getProductById);
 router.put("/:id",    ctrl.updateProduct);
 router.delete("/:id", ctrl.deleteProduct);
+router.patch("/increase-stock/:code", ctrl.increaseStock);
 
 module.exports = router;

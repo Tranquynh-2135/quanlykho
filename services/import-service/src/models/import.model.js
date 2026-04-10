@@ -11,7 +11,7 @@ const importSchema = new mongoose.Schema(
     warehouseId: { type: String, required: true },
     supplier: {
       type: String,
-      required: true,
+      required: false,
     },
     importDate: {
       type: Date,

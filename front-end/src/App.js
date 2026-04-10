@@ -6,6 +6,7 @@ import Import from "./pages/Import/Import";
 import Suppliers from "./pages/Suppliers/Suppliers";
 import Warehouses from "./pages/Warehouses/Warehouses";
 import Users from "./pages/Users/Users";
+import Export from "./pages/Export/Export";
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
             <Route path="/suppliers" element={<Suppliers />} />
             <Route path="/warehouses" element={<Warehouses />} />
             <Route path="/users" element={<Users />} />
+            <Route path="/export" element={<Export />} />
           </Routes>
         </div>
       </div>
