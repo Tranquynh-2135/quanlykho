@@ -106,22 +106,26 @@ const uploadImage = (req, res) => {
   res.json({ success: true, imageHash: req.file.filename });
 };
 
-// Tăng stock khi nhập kho
+// ====================== INCREASE / DECREASE STOCK ======================
 const increaseStock = async (req, res, next) => {
   try {
-    const { quantity } = req.body;
+    let { quantity } = req.body;
 
-    if (!quantity || quantity <= 0) {
+    if (quantity === undefined || quantity === null) {
       return res.status(400).json({
         success: false,
-        message: "Quantity phải lớn hơn 0",
+        message: "Quantity là bắt buộc",
       });
     }
 
+    // Cho phép quantity âm (để trừ stock khi xóa phiếu nhập)
     const product = await Product.findOneAndUpdate(
       { code: req.params.code },
-      { $inc: { stock: quantity } },
-      { new: true, runValidators: true },
+      { $inc: { stock: Number(quantity) } }, // $inc tự động xử lý + hoặc -
+      {
+        new: true,
+        runValidators: true,
+      },
     );
 
     if (!product) {
@@ -131,7 +135,12 @@ const increaseStock = async (req, res, next) => {
       });
     }
 
-    res.json({ success: true, data: product });
+    res.json({
+      success: true,
+      data: product,
+      message:
+        quantity > 0 ? "Tăng tồn kho thành công" : "Giảm tồn kho thành công",
+    });
   } catch (err) {
     next(err);
   }
