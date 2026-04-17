@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { dashboardApi } from "../../services/dashboardApi";
 import { productApi } from "../../services/productApi";
 import { importApi } from "../../services/importApi";
+import { productApi }   from "../../services/productApi";
+import { importApi }    from "../../services/importApi";
 import "./Dashboard.css";
 
 const getExpiryInfoFromDate = (expiryDate) => {
@@ -12,14 +14,23 @@ const getExpiryInfoFromDate = (expiryDate) => {
   if (days <= 30)
     return { label: `Còn ${days} ngày`, cls: "expiry-yellow", days };
   return { label: `Còn ${days} ngày`, cls: "expiry-green", days };
+  if (days <= 0)  return { label: "Hết hạn",          cls: "expiry-expired", days };
+  if (days <= 10) return { label: `Còn ${days} ngày`, cls: "expiry-red",     days };
+  if (days <= 30) return { label: `Còn ${days} ngày`, cls: "expiry-yellow",  days };
+  return               { label: `Còn ${days} ngày`, cls: "expiry-green",   days };
 };
 
 const getExpiryInfoFromDays = (expiryDays) => {
   if (!expiryDays || expiryDays <= 0) return null;
+
   if (expiryDays <= 10)
     return { label: `Còn ${expiryDays} ngày`, cls: "expiry-red" };
   if (expiryDays <= 30)
     return { label: `Còn ${expiryDays} ngày`, cls: "expiry-yellow" };
+
+  if (expiryDays <= 10) return { label: `Còn ${expiryDays} ngày`, cls: "expiry-red" };
+  if (expiryDays <= 30) return { label: `Còn ${expiryDays} ngày`, cls: "expiry-yellow" };
+
   return { label: `HSD: ${expiryDays} ngày`, cls: "expiry-green" };
 };
 
@@ -33,19 +44,22 @@ const statusLabel = (s) =>
   ({ active: "Hoạt động", inactive: "Ngừng KD", discontinued: "Ngừng SX" })[
     s
   ] || s;
+  ({ active: "Hoạt động", inactive: "Ngừng KD", discontinued: "Ngừng SX" })[s] || s;
 
 const Dashboard = () => {
-  const [stats, setStats] = useState({
-    totalProducts: 0,
-    lowStock: 0,
-    todayImports: 0,
-    totalValue: 0,
+  const [stats,            setStats]            = useState({
+    totalProducts: 0, lowStock: 0, todayImports: 0, totalValue: 0,
   });
   const [stockProducts, setStockProducts] = useState([]);
   const [lowStockProducts, setLowStockProducts] = useState([]);
   const [recentImports, setRecentImports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [stockProducts,    setStockProducts]    = useState([]);
+  const [lowStockProducts, setLowStockProducts] = useState([]);
+  const [recentImports,    setRecentImports]    = useState([]);
+  const [loading,          setLoading]          = useState(true);
+  const [error,            setError]            = useState(null);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -59,6 +73,12 @@ const Dashboard = () => {
             importApi.getAll({ limit: 5, sort: "-importDate" }),
             productApi.getAll({ status: "active" }),
           ]);
+        const [statsData, lowStockData, importsRes, productsRes] = await Promise.all([
+          dashboardApi.getStats(),
+          dashboardApi.getLowStockProducts(6),
+          importApi.getAll({ limit: 5, sort: "-importDate" }),
+          productApi.getAll({ status: "active" }),
+        ]);
 
         setStats(statsData);
         setLowStockProducts(lowStockData);
@@ -73,6 +93,7 @@ const Dashboard = () => {
             (a, b) =>
               getExpiryScore(a.expiryDays) - getExpiryScore(b.expiryDays),
           );
+          .sort((a, b) => getExpiryScore(a.expiryDays) - getExpiryScore(b.expiryDays));
         setStockProducts(inStock);
 
         setError(null);
@@ -95,6 +116,11 @@ const Dashboard = () => {
 
   const nearExpiryCount = stockProducts.filter(
     (p) => p.expiryDays && p.expiryDays <= 30,
+  if (loading) return <div className="dashboard-loading">Đang tải dữ liệu...</div>;
+  if (error)   return <div className="dashboard-error">{error}</div>;
+
+  const nearExpiryCount = stockProducts.filter(
+    (p) => p.expiryDays && p.expiryDays <= 30
   ).length;
 
   return (
@@ -107,9 +133,7 @@ const Dashboard = () => {
           <div className="stat-icon">📦</div>
           <div className="stat-content">
             <h3>Tổng sản phẩm</h3>
-            <div className="stat-value">
-              {stats.totalProducts.toLocaleString("vi-VN")}
-            </div>
+            <div className="stat-value">{stats.totalProducts.toLocaleString("vi-VN")}</div>
             <p className="stat-desc">Trong hệ thống</p>
           </div>
         </div>
@@ -190,6 +214,26 @@ const Dashboard = () => {
                       <span className="stock-card-urgent-badge">
                         ⚡ Gần HSD
                       </span>
+              const isLowStock   = (p.stock ?? 0) <= (p.minStock || 10);
+              const stockPct     = Math.min(
+                ((p.stock ?? 0) / (p.maxStock || (p.minStock || 10) * 3 || 30)) * 100,
+                100
+              );
+
+              return (
+                <div key={p._id} className={`stock-product-card${isNearExpiry ? " card-near-expiry" : ""}`}>
+
+                  {/* Ảnh */}
+                  <div className="stock-card-img-wrap">
+                    {p.imageHash
+                      ? <img src={productApi.imageUrl(p.imageHash)} alt={p.name} className="stock-card-img" />
+                      : <div className="stock-card-no-img">📷</div>
+                    }
+                    <span className={`stock-card-status-badge pp-status-${p.status}`}>
+                      {statusLabel(p.status)}
+                    </span>
+                    {isNearExpiry && (
+                      <span className="stock-card-urgent-badge">⚡ Gần HSD</span>
                     )}
                   </div>
 
@@ -214,6 +258,10 @@ const Dashboard = () => {
                       ) : (
                         <span className="stock-info-val muted">Không có</span>
                       )}
+                      {expiryInfo
+                        ? <span className={`expiry-badge ${expiryInfo.cls}`}>{expiryInfo.label}</span>
+                        : <span className="stock-info-val muted">Không có</span>
+                      }
                     </div>
 
                     {/* Tồn kho + progress */}
@@ -226,6 +274,10 @@ const Dashboard = () => {
                         {isLowStock && (
                           <span className="stock-low-pill">Thấp</span>
                         )}
+                      <span className={`stock-info-val${isLowStock ? " val-danger" : " val-ok"}`}>
+                        {p.stock ?? 0}
+                        {isLowStock && <span className="stock-low-pill">Thấp</span>}
+>>>>>>> main
                       </span>
                     </div>
                     <div className="stock-progress">
@@ -237,14 +289,8 @@ const Dashboard = () => {
 
                     {/* Tối thiểu / tối đa */}
                     <div className="stock-minmax-row">
-                      <span>
-                        Tối thiểu: <strong>{p.minStock ?? 10}</strong>
-                      </span>
-                      {p.maxStock ? (
-                        <span>
-                          Tối đa: <strong>{p.maxStock}</strong>
-                        </span>
-                      ) : null}
+                      <span>Tối thiểu: <strong>{p.minStock ?? 10}</strong></span>
+                      {p.maxStock ? <span>Tối đa: <strong>{p.maxStock}</strong></span> : null}
                     </div>
 
                     {/* Vị trí */}
@@ -272,6 +318,7 @@ const Dashboard = () => {
                         </span>
                       </div>
                     )}
+
                   </div>
                 </div>
               );
@@ -282,6 +329,7 @@ const Dashboard = () => {
 
       {/* ── 2 cột dưới ── */}
       <div className="db-two-col">
+
         {/* Phiếu nhập gần đây */}
         <div className="db-section">
           <h2 className="db-section-title">📥 Phiếu nhập gần đây</h2>
@@ -298,9 +346,7 @@ const Dashboard = () => {
                     </span>
                   </div>
                   <div className="recent-item-bot">
-                    <span className="recent-meta">
-                      {imp.items?.length} mặt hàng
-                    </span>
+                    <span className="recent-meta">{imp.items?.length} mặt hàng</span>
                     <span className="recent-amount">
                       {imp.totalAmount?.toLocaleString("vi-VN")} ₫
                     </span>
@@ -310,21 +356,12 @@ const Dashboard = () => {
                       const info = getExpiryInfoFromDate(item.expiryDate);
                       return (
                         <div key={i} className="recent-product-row">
-                          <code style={{ fontSize: 11 }}>
-                            {item.productCode}
-                          </code>
+                          <code style={{ fontSize: 11 }}>{item.productCode}</code>
                           <span>SL: {item.quantity}</span>
-                          <span>
-                            {item.unitPrice?.toLocaleString("vi-VN")} ₫
-                          </span>
+                          <span>{item.unitPrice?.toLocaleString("vi-VN")} ₫</span>
                           {info && (
-                            <span
-                              className={`expiry-badge ${info.cls}`}
-                              style={{ fontSize: 11 }}
-                            >
-                              {new Date(item.expiryDate).toLocaleDateString(
-                                "vi-VN",
-                              )}
+                            <span className={`expiry-badge ${info.cls}`} style={{ fontSize: 11 }}>
+                              {new Date(item.expiryDate).toLocaleDateString("vi-VN")}
                             </span>
                           )}
                         </div>
@@ -351,16 +388,12 @@ const Dashboard = () => {
                   <div className="low-stock-nums">
                     <span className="low-stock-current">{product.stock}</span>
                     <span className="low-stock-sep">/</span>
-                    <span className="low-stock-min">
-                      {product.minStock || 10}
-                    </span>
+                    <span className="low-stock-min">{product.minStock || 10}</span>
                   </div>
                   <div className="progress-bar">
                     <div
                       className="progress-fill danger"
-                      style={{
-                        width: `${Math.min((product.stock / (product.minStock || 10)) * 100, 100)}%`,
-                      }}
+                      style={{ width: `${Math.min((product.stock / (product.minStock || 10)) * 100, 100)}%` }}
                     />
                   </div>
                 </div>
