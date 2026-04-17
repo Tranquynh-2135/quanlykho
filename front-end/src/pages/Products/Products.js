@@ -17,6 +17,16 @@ const getExpiryInfo = (expiryDays) => {
   return { label: `HSD: ${expiryDays} ngày`, cls: "expiry-green" };
 };
 
+// Tính thông tin hạn sử dụng từ số ngày
+const getExpiryInfo = (expiryDays) => {
+  if (!expiryDays || expiryDays <= 0) return null;
+  if (expiryDays <= 10)
+    return { label: `HSD: ${expiryDays} ngày`, cls: "expiry-red" };
+  if (expiryDays <= 30)
+    return { label: `HSD: ${expiryDays} ngày`, cls: "expiry-yellow" };
+  return { label: `HSD: ${expiryDays} ngày`, cls: "expiry-green" };
+};
+
 const Products = () => {
   const [products,     setProducts]     = useState([]);
   const [suppliers,    setSuppliers]    = useState([]);
@@ -58,6 +68,9 @@ const Products = () => {
     }
   }, [search, filterStatus]);
 
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   const openAdd = () => {
@@ -124,6 +137,7 @@ const Products = () => {
         imageHash,
       };
       if (modalMode === "add") await productApi.create(payload);
+      else await productApi.update(editingId, payload);
       else                     await productApi.update(editingId, payload);
       setShowModal(false);
       fetchProducts();
@@ -202,6 +216,15 @@ const Products = () => {
               <div key={p._id} className="pp-card">
                 {/* Ảnh */}
                 <div className="pp-card-img-wrap">
+                  {p.imageHash ? (
+                    <img
+                      src={productApi.imageUrl(p.imageHash)}
+                      alt={p.name}
+                      className="pp-card-img"
+                    />
+                  ) : (
+                    <div className="pp-card-no-img">📷</div>
+                  )}
                   {p.imageHash
                     ? <img src={productApi.imageUrl(p.imageHash)} alt={p.name} className="pp-card-img" />
                     : <div className="pp-card-no-img">📷</div>}
@@ -218,6 +241,9 @@ const Products = () => {
 
                   {/* Hạn sử dụng */}
                   {expiryInfo ? (
+                    <span
+                      className={`pp-card-expiry expiry-badge ${expiryInfo.cls}`}
+                    >
                     <span className={`pp-card-expiry expiry-badge ${expiryInfo.cls}`}>
                       🕐 {expiryInfo.label}
                     </span>
@@ -232,6 +258,20 @@ const Products = () => {
 
                 {/* Actions */}
                 <div className="pp-card-footer">
+                  <button
+                    className="pp-btn-icon pp-btn-edit"
+                    onClick={() => openEdit(p)}
+                    title="Sửa"
+                  >
+                    ✏️ Sửa
+                  </button>
+                  <button
+                    className="pp-btn-icon pp-btn-del"
+                    onClick={() => setDeleteTarget(p)}
+                    title="Xóa"
+                  >
+                    🗑️
+                  </button>
                   <button className="pp-btn-icon pp-btn-edit"
                     onClick={() => openEdit(p)} title="Sửa">✏️ Sửa</button>
                   <button className="pp-btn-icon pp-btn-del"
@@ -257,6 +297,26 @@ const Products = () => {
               {/* Ảnh preview lớn ở đầu modal */}
               <div className="pp-modal-img-section">
                 <div className="pp-modal-img-wrap">
+                  {imagePreview ? (
+                    <img
+                      src={imagePreview}
+                      alt="preview"
+                      className="pp-modal-img-preview"
+                    />
+                  ) : (
+                    <div className="pp-modal-img-placeholder">
+                      📷<span>Chưa có ảnh</span>
+                    </div>
+                  )}
+                </div>
+                <label className="pp-img-upload-btn">
+                  🖼️ {imagePreview ? "Đổi ảnh" : "Tải ảnh lên"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    style={{ display: "none" }}
+                  />
                   {imagePreview
                     ? <img src={imagePreview} alt="preview" className="pp-modal-img-preview" />
                     : <div className="pp-modal-img-placeholder">📷<span>Chưa có ảnh</span></div>
@@ -269,6 +329,23 @@ const Products = () => {
               </div>
 
               <div className="pp-form-grid">
+                <label>
+                  Mã vật tư *
+                  <input
+                    name="code"
+                    value={formData.code}
+                    onChange={handleFormChange}
+                    placeholder="SP001"
+                    disabled={modalMode === "edit"}
+                  />
+                </label>
+                <label>
+                  Tên vật tư *
+                  <input
+                    name="name"
+                    value={formData.name}
+                    onChange={handleFormChange}
+                  />
                 <label>Mã vật tư *
                   <input name="code" value={formData.code}
                     onChange={handleFormChange} placeholder="SP001"
@@ -282,6 +359,74 @@ const Products = () => {
                 {/* Hạn sử dụng nổi bật */}
                 <label className="pp-expiry-label">
                   <span>🕐 Hạn sử dụng (số ngày)</span>
+                  <input
+                    name="expiryDays"
+                    type="number"
+                    min="0"
+                    value={formData.expiryDays}
+                    onChange={handleFormChange}
+                    placeholder="VD: 180 ngày"
+                  />
+                  {formData.expiryDays && (
+                    <span
+                      className={`expiry-badge ${getExpiryInfo(Number(formData.expiryDays))?.cls || "expiry-green"}`}
+                      style={{ marginTop: 4, display: "inline-block" }}
+                    >
+                      {getExpiryInfo(Number(formData.expiryDays))?.label ||
+                        `HSD: ${formData.expiryDays} ngày`}
+                    </span>
+                  )}
+                </label>
+
+                <label>
+                  Trạng thái
+                  <select
+                    name="status"
+                    value={formData.status}
+                    onChange={handleFormChange}
+                  >
+                    <option value="active">Hoạt động</option>
+                    <option value="inactive">Ngừng KD</option>
+                    <option value="discontinued">Ngừng SX</option>
+                  </select>
+                </label>
+
+                <label>
+                  Tồn tối thiểu
+                  <input
+                    name="minStock"
+                    type="number"
+                    value={formData.minStock}
+                    onChange={handleFormChange}
+                  />
+                </label>
+                <label>
+                  Tồn tối đa
+                  <input
+                    name="maxStock"
+                    type="number"
+                    value={formData.maxStock}
+                    onChange={handleFormChange}
+                  />
+                </label>
+                <label>
+                  Vị trí
+                  <input
+                    name="location"
+                    value={formData.location}
+                    onChange={handleFormChange}
+                    placeholder="Kệ A1..."
+                  />
+                </label>
+
+                <label className="pp-full-col">
+                  Mô tả
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleFormChange}
+                    rows={3}
+                  />
                   <input name="expiryDays" type="number" min="0"
                     value={formData.expiryDays} onChange={handleFormChange}
                     placeholder="VD: 180 ngày" />
@@ -337,6 +482,11 @@ const Products = () => {
           <div className="pp-confirm" onClick={(e) => e.stopPropagation()}>
             <div className="pp-confirm-icon">🗑️</div>
             <h3>Xác nhận xóa</h3>
+            <p>
+              Bạn có chắc muốn xóa vật tư
+              <br />
+              <strong>"{deleteTarget.name}"</strong>?
+            </p>
             <p>Bạn có chắc muốn xóa vật tư<br />
               <strong>"{deleteTarget.name}"</strong>?</p>
             <p className="pp-confirm-warn">Hành động này không thể hoàn tác.</p>

@@ -262,6 +262,9 @@
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
+.progress-fill.ok {
+  background: #22c55e;
+}
 
 /* Phiếu nhập */
 .recent-list { display: flex; flex-direction: column; gap: 10px; }

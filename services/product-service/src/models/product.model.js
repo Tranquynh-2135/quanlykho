@@ -10,7 +10,6 @@ const productSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
-    costPrice: { type: Number, required: true, min: 0 },
     minStock: { type: Number, default: 10, min: 0 },
     maxStock: { type: Number, min: 0 },
     expiryDays: {

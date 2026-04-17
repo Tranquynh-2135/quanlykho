@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { dashboardApi } from "../../services/dashboardApi";
+import { productApi } from "../../services/productApi";
+import { importApi } from "../../services/importApi";
 import { productApi }   from "../../services/productApi";
 import { importApi }    from "../../services/importApi";
 import "./Dashboard.css";
@@ -7,6 +9,11 @@ import "./Dashboard.css";
 const getExpiryInfoFromDate = (expiryDate) => {
   if (!expiryDate) return null;
   const days = Math.ceil((new Date(expiryDate) - new Date()) / 86400000);
+  if (days <= 0) return { label: "Hết hạn", cls: "expiry-expired", days };
+  if (days <= 10) return { label: `Còn ${days} ngày`, cls: "expiry-red", days };
+  if (days <= 30)
+    return { label: `Còn ${days} ngày`, cls: "expiry-yellow", days };
+  return { label: `Còn ${days} ngày`, cls: "expiry-green", days };
   if (days <= 0)  return { label: "Hết hạn",          cls: "expiry-expired", days };
   if (days <= 10) return { label: `Còn ${days} ngày`, cls: "expiry-red",     days };
   if (days <= 30) return { label: `Còn ${days} ngày`, cls: "expiry-yellow",  days };
@@ -15,8 +22,15 @@ const getExpiryInfoFromDate = (expiryDate) => {
 
 const getExpiryInfoFromDays = (expiryDays) => {
   if (!expiryDays || expiryDays <= 0) return null;
+
+  if (expiryDays <= 10)
+    return { label: `Còn ${expiryDays} ngày`, cls: "expiry-red" };
+  if (expiryDays <= 30)
+    return { label: `Còn ${expiryDays} ngày`, cls: "expiry-yellow" };
+
   if (expiryDays <= 10) return { label: `Còn ${expiryDays} ngày`, cls: "expiry-red" };
   if (expiryDays <= 30) return { label: `Còn ${expiryDays} ngày`, cls: "expiry-yellow" };
+
   return { label: `HSD: ${expiryDays} ngày`, cls: "expiry-green" };
 };
 
@@ -27,12 +41,20 @@ const getExpiryScore = (expiryDays) => {
 };
 
 const statusLabel = (s) =>
+  ({ active: "Hoạt động", inactive: "Ngừng KD", discontinued: "Ngừng SX" })[
+    s
+  ] || s;
   ({ active: "Hoạt động", inactive: "Ngừng KD", discontinued: "Ngừng SX" })[s] || s;
 
 const Dashboard = () => {
   const [stats,            setStats]            = useState({
     totalProducts: 0, lowStock: 0, todayImports: 0, totalValue: 0,
   });
+  const [stockProducts, setStockProducts] = useState([]);
+  const [lowStockProducts, setLowStockProducts] = useState([]);
+  const [recentImports, setRecentImports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [stockProducts,    setStockProducts]    = useState([]);
   const [lowStockProducts, setLowStockProducts] = useState([]);
   const [recentImports,    setRecentImports]    = useState([]);
@@ -44,6 +66,13 @@ const Dashboard = () => {
       try {
         setLoading(true);
 
+        const [statsData, lowStockData, importsRes, productsRes] =
+          await Promise.all([
+            dashboardApi.getStats(),
+            dashboardApi.getLowStockProducts(6),
+            importApi.getAll({ limit: 5, sort: "-importDate" }),
+            productApi.getAll({ status: "active" }),
+          ]);
         const [statsData, lowStockData, importsRes, productsRes] = await Promise.all([
           dashboardApi.getStats(),
           dashboardApi.getLowStockProducts(6),
@@ -60,6 +89,10 @@ const Dashboard = () => {
         const allProducts = productsRes.data.data || [];
         const inStock = allProducts
           .filter((p) => (p.stock ?? 0) > 0)
+          .sort(
+            (a, b) =>
+              getExpiryScore(a.expiryDays) - getExpiryScore(b.expiryDays),
+          );
           .sort((a, b) => getExpiryScore(a.expiryDays) - getExpiryScore(b.expiryDays));
         setStockProducts(inStock);
 
@@ -77,6 +110,12 @@ const Dashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
+  if (loading)
+    return <div className="dashboard-loading">Đang tải dữ liệu...</div>;
+  if (error) return <div className="dashboard-error">{error}</div>;
+
+  const nearExpiryCount = stockProducts.filter(
+    (p) => p.expiryDays && p.expiryDays <= 30,
   if (loading) return <div className="dashboard-loading">Đang tải dữ liệu...</div>;
   if (error)   return <div className="dashboard-error">{error}</div>;
 
@@ -142,6 +181,39 @@ const Dashboard = () => {
             {stockProducts.map((p) => {
               const expiryInfo = getExpiryInfoFromDays(p.expiryDays);
               const isNearExpiry = p.expiryDays && p.expiryDays <= 30;
+              const isLowStock = (p.stock ?? 0) <= (p.minStock || 10);
+              const stockPct = Math.min(
+                ((p.stock ?? 0) /
+                  (p.maxStock || (p.minStock || 10) * 3 || 30)) *
+                  100,
+                100,
+              );
+
+              return (
+                <div
+                  key={p._id}
+                  className={`stock-product-card${isNearExpiry ? " card-near-expiry" : ""}`}
+                >
+                  {/* Ảnh */}
+                  <div className="stock-card-img-wrap">
+                    {p.imageHash ? (
+                      <img
+                        src={productApi.imageUrl(p.imageHash)}
+                        alt={p.name}
+                        className="stock-card-img"
+                      />
+                    ) : (
+                      <div className="stock-card-no-img">📷</div>
+                    )}
+                    <span
+                      className={`stock-card-status-badge pp-status-${p.status}`}
+                    >
+                      {statusLabel(p.status)}
+                    </span>
+                    {isNearExpiry && (
+                      <span className="stock-card-urgent-badge">
+                        ⚡ Gần HSD
+                      </span>
               const isLowStock   = (p.stock ?? 0) <= (p.minStock || 10);
               const stockPct     = Math.min(
                 ((p.stock ?? 0) / (p.maxStock || (p.minStock || 10) * 3 || 30)) * 100,
@@ -167,7 +239,6 @@ const Dashboard = () => {
 
                   {/* Body: tất cả thông tin */}
                   <div className="stock-card-body">
-
                     <code className="pp-code">{p.code}</code>
                     <h3 className="stock-card-name">{p.name}</h3>
 
@@ -180,6 +251,13 @@ const Dashboard = () => {
                     {/* Hạn sử dụng */}
                     <div className="stock-info-row">
                       <span className="stock-info-label">🕐 Hạn sử dụng</span>
+                      {expiryInfo ? (
+                        <span className={`expiry-badge ${expiryInfo.cls}`}>
+                          {expiryInfo.label}
+                        </span>
+                      ) : (
+                        <span className="stock-info-val muted">Không có</span>
+                      )}
                       {expiryInfo
                         ? <span className={`expiry-badge ${expiryInfo.cls}`}>{expiryInfo.label}</span>
                         : <span className="stock-info-val muted">Không có</span>
@@ -189,9 +267,17 @@ const Dashboard = () => {
                     {/* Tồn kho + progress */}
                     <div className="stock-info-row">
                       <span className="stock-info-label">📦 Tồn kho</span>
+                      <span
+                        className={`stock-info-val${isLowStock ? " val-danger" : " val-ok"}`}
+                      >
+                        {p.stock ?? 0}
+                        {isLowStock && (
+                          <span className="stock-low-pill">Thấp</span>
+                        )}
                       <span className={`stock-info-val${isLowStock ? " val-danger" : " val-ok"}`}>
                         {p.stock ?? 0}
                         {isLowStock && <span className="stock-low-pill">Thấp</span>}
+>>>>>>> main
                       </span>
                     </div>
                     <div className="stock-progress">
