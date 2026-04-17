@@ -342,113 +342,127 @@ const Import = () => {
               <table className="items-table">
                 <thead>
                   <tr>
-                    <th style={{ minWidth: 240 }}>Sản phẩm</th>
-                    <th style={{ minWidth: 90 }}>Số lượng</th>
+                    <th style={{ minWidth: 260 }}>Sản phẩm</th>
+                    <th style={{ minWidth: 100 }}>Số lượng</th>
                     <th style={{ minWidth: 140 }}>Giá vốn (₫)</th>
-                    <th style={{ minWidth: 150 }}>Hạn sử dụng</th>
-                    <th style={{ minWidth: 120 }}>Thành tiền</th>
+                    <th style={{ minWidth: 130 }}>NSX</th>
+                    <th style={{ minWidth: 130 }}>HSD</th>
+                    <th style={{ minWidth: 130 }}>Thành tiền</th>
                     <th style={{ minWidth: 60 }}></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {formData.items.map((item, index) => (
-                    <tr key={index}>
-                      <td>
-                        <Select
-                          options={productOptions}
-                          value={
-                            productOptions.find(
-                              (o) => o.value === item.productCode,
-                            ) || null
-                          }
-                          onChange={(sel) =>
-                            handleItemChange(
-                              index,
-                              "productCode",
-                              sel ? sel.value : "",
-                            )
-                          }
-                          placeholder="Tìm sản phẩm..."
-                          isSearchable
-                          className="react-select-container"
-                          classNamePrefix="react-select"
-                          menuPortalTarget={document.body}
-                          menuPosition="fixed"
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          min="1"
-                          value={item.quantity}
-                          onChange={(e) =>
-                            handleItemChange(index, "quantity", e.target.value)
-                          }
-                          required
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          min="0"
-                          step="100"
-                          value={item.unitPrice}
-                          onChange={(e) =>
-                            handleItemChange(index, "unitPrice", e.target.value)
-                          }
-                          required
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="date"
-                          value={item.expiryDate || ""}
-                          onChange={(e) =>
-                            handleItemChange(
-                              index,
-                              "expiryDate",
-                              e.target.value,
-                            )
-                          }
-                        />
-                        {item.expiryDate &&
-                          (() => {
-                            const info = getExpiryInfo(item.expiryDate);
-                            return info ? (
-                              <span
-                                className={`expiry-badge ${info.cls}`}
-                                style={{
-                                  display: "block",
-                                  marginTop: 4,
-                                  fontSize: 11,
-                                }}
-                              >
-                                {info.label}
-                              </span>
-                            ) : null;
-                          })()}
-                      </td>
-                      <td className="total-cell">
-                        {(
-                          Number(item.quantity) * Number(item.unitPrice)
-                        ).toLocaleString("vi-VN")}{" "}
-                        ₫
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          className="btn-remove"
-                          onClick={() => removeItemRow(index)}
-                          disabled={formData.items.length === 1}
-                        >
-                          Xóa
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {formData.items.map((item, index) => {
+                    const selectedProduct = products.find(
+                      (p) => p.code === item.productCode,
+                    );
+
+                    return (
+                      <tr key={index}>
+                        {/* Sản phẩm */}
+                        <td>
+                          <Select
+                            options={productOptions}
+                            value={
+                              productOptions.find(
+                                (o) => o.value === item.productCode,
+                              ) || null
+                            }
+                            onChange={(sel) =>
+                              handleItemChange(
+                                index,
+                                "productCode",
+                                sel ? sel.value : "",
+                              )
+                            }
+                            placeholder="Tìm và chọn sản phẩm..."
+                            isSearchable
+                            className="react-select-container"
+                            classNamePrefix="react-select"
+                            menuPortalTarget={document.body}
+                            menuPosition="fixed"
+                          />
+                        </td>
+
+                        {/* Số lượng */}
+                        <td>
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) =>
+                              handleItemChange(
+                                index,
+                                "quantity",
+                                e.target.value,
+                              )
+                            }
+                            required
+                          />
+                        </td>
+
+                        {/* Giá vốn (có thể sửa) */}
+                        <td>
+                          <input
+                            type="number"
+                            min="0"
+                            step="100"
+                            value={item.unitPrice}
+                            onChange={(e) =>
+                              handleItemChange(
+                                index,
+                                "unitPrice",
+                                e.target.value,
+                              )
+                            }
+                            required
+                          />
+                        </td>
+
+                        {/* NSX - Chỉ hiển thị, không cho sửa */}
+                        <td className="date-cell">
+                          {selectedProduct?.manufacturingDate
+                            ? new Date(
+                                selectedProduct.manufacturingDate,
+                              ).toLocaleDateString("vi-VN")
+                            : "—"}
+                        </td>
+
+                        {/* HSD - Chỉ hiển thị, không cho sửa */}
+                        <td className="date-cell">
+                          {selectedProduct?.expiryDate
+                            ? new Date(
+                                selectedProduct.expiryDate,
+                              ).toLocaleDateString("vi-VN")
+                            : "—"}
+                        </td>
+
+                        {/* Thành tiền */}
+                        <td className="total-cell">
+                          {(
+                            Number(item.quantity) * Number(item.unitPrice)
+                          ).toLocaleString("vi-VN")}{" "}
+                          ₫
+                        </td>
+
+                        {/* Xóa */}
+                        <td>
+                          <button
+                            type="button"
+                            className="btn-remove"
+                            onClick={() => removeItemRow(index)}
+                            disabled={formData.items.length === 1}
+                          >
+                            Xóa
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
+
             <button type="button" className="btn-add" onClick={addItemRow}>
               + Thêm sản phẩm
             </button>
@@ -606,6 +620,7 @@ const Import = () => {
               )}
             </div>
 
+            {/* Bảng chi tiết sản phẩm trong phiếu */}
             <table className="detail-table">
               <thead>
                 <tr>
@@ -614,7 +629,8 @@ const Import = () => {
                   <th>Tên sản phẩm</th>
                   <th>Số lượng</th>
                   <th>Giá vốn</th>
-                  <th>Hạn sử dụng</th>
+                  <th>NSX</th>
+                  <th>HSD</th>
                   <th>Thành tiền</th>
                 </tr>
               </thead>
@@ -623,7 +639,21 @@ const Import = () => {
                   const prod = products.find(
                     (p) => p.code === item.productCode,
                   );
-                  const info = getExpiryInfo(item.expiryDate);
+
+                  const mfgDate =
+                    item.manufacturingDate || prod?.manufacturingDate
+                      ? new Date(
+                          item.manufacturingDate || prod.manufacturingDate,
+                        ).toLocaleDateString("vi-VN")
+                      : "—";
+
+                  const expDate =
+                    item.expiryDate || prod?.expiryDate
+                      ? new Date(
+                          item.expiryDate || prod.expiryDate,
+                        ).toLocaleDateString("vi-VN")
+                      : "—";
+
                   return (
                     <tr key={i}>
                       <td style={{ color: "#94a3b8" }}>{i + 1}</td>
@@ -633,25 +663,8 @@ const Import = () => {
                       <td>{prod?.name || item.productCode}</td>
                       <td>{item.quantity}</td>
                       <td>{item.unitPrice?.toLocaleString("vi-VN")} ₫</td>
-                      <td>
-                        {info ? (
-                          <div>
-                            <span>
-                              {new Date(item.expiryDate).toLocaleDateString(
-                                "vi-VN",
-                              )}
-                            </span>
-                            <span
-                              className={`expiry-badge ${info.cls}`}
-                              style={{ display: "block", marginTop: 2 }}
-                            >
-                              {info.label}
-                            </span>
-                          </div>
-                        ) : (
-                          <span style={{ color: "#94a3b8" }}>—</span>
-                        )}
-                      </td>
+                      <td>{mfgDate}</td>
+                      <td>{expDate}</td>
                       <td>
                         <strong>
                           {item.totalPrice?.toLocaleString("vi-VN")} ₫
@@ -664,7 +677,7 @@ const Import = () => {
               <tfoot>
                 <tr>
                   <td
-                    colSpan="6"
+                    colSpan="7"
                     style={{
                       textAlign: "right",
                       fontWeight: 600,
