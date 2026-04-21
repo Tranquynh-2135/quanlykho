@@ -103,7 +103,7 @@ export default function Export() {
 
   const loadHistory = async () => {
     try {
-      const res = await fetch("http://localhost:4003/api/exports");
+      const res = await fetch("http://localhost:4002/exports");
       const data = await res.json();
       const historyData = Array.isArray(data) ? data : data?.data || [];
       setHistory(historyData);
@@ -116,7 +116,7 @@ export default function Export() {
     if (!productId || !warehouseId) return;
     try {
       const res = await fetch(
-        `http://localhost:4005/api/warehouses/current-stock?productId=${productId}&warehouseId=${warehouseId}`
+        `http://localhost:4005/warehouses/current-stock?productId=${productId}&warehouseId=${warehouseId}`
       );
       const data = await res.json();
       setStockMap(prev => ({ ...prev, [productId]: data.quantity || 0 }));
@@ -179,31 +179,35 @@ export default function Export() {
     setError("");
 
     try {
-      for (const item of items) {
-        if (!item.productId) throw new Error("Vui lòng chọn sản phẩm cho tất cả dòng!");
-        if (item.quantity < 1) throw new Error("Số lượng phải lớn hơn 0!");
-
+      if (items.some(i => !i.productId)) throw new Error("Vui lòng chọn sản phẩm cho tất cả dòng!");
+      
+      // Chuẩn bị dữ liệu gửi đi (Gửi mảng thay vì gọi lẻ trong vòng lặp)
+      const processedItems = items.map(item => {
+        const product = products.find(p => p._id === item.productId);
         const currentStock = stockMap[item.productId] || 0;
-        if (item.quantity > currentStock) {
-          throw new Error(`Vượt tồn kho! Hiện chỉ còn ${currentStock}`);
-        }
+        if (item.quantity > currentStock) throw new Error(`Sản phẩm ${product?.name} vượt tồn kho!`);
+        
+        return {
+          productCode: product?.code,
+          quantity: item.quantity
+        };
+      });
 
-        const res = await fetch("http://localhost:4003/api/exports", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            productId: item.productId,
-            warehouseId: form.warehouseId,
-            quantity: item.quantity,
-            reason: form.reason,
-            note: form.note,
-          }),
-        });
+      const res = await fetch("http://localhost:4002/exports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          warehouseId: form.warehouseId,
+          recipient: suppliers.find(s => s._id === form.supplierId)?.name || "N/A",
+          reason: form.reason,
+          items: processedItems,
+          note: form.note,
+        }),
+      });
 
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.message || "Lỗi khi xuất kho");
-        }
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || "Lỗi khi xuất kho");
       }
 
       alert("✅ Xuất kho thành công!");

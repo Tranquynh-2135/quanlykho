@@ -1,7 +1,7 @@
 const Import = require("../models/import.model");
 const axios = require("axios");
 
-const PRODUCT_SERVICE_URL = "http://localhost:4001";
+const PRODUCT_SERVICE_URL = process.env.PRODUCT_SERVICE_URL || "http://localhost:4001";
 
 // ====================== GET ALL ======================
 const getAllImports = async (req, res, next) => {
@@ -75,21 +75,18 @@ const createImport = async (req, res, next) => {
       status: "completed",
     });
 
-    const savedImport = await newImport.save();
+    // Thực hiện cập nhật tồn kho trước
+    const stockUpdates = processedItems.map(item => 
+      axios.patch(`${PRODUCT_SERVICE_URL}/products/increase-stock/${item.productCode}`, {
+        quantity: item.quantity
+      })
+    );
 
-    // Tăng stock...
-    for (const item of processedItems) {
-      try {
-        await axios.patch(
-          `http://localhost:4001/products/increase-stock/${item.productCode}`,
-          {
-            quantity: item.quantity,
-          },
-        );
-      } catch (err) {
-        console.error(err.message);
-      }
-    }
+    // Đợi tất cả cập nhật kho thành công
+    await Promise.all(stockUpdates);
+
+    // Nếu thành công mới lưu phiếu nhập
+    const savedImport = await newImport.save();
 
     res.status(201).json({
       success: true,
@@ -116,16 +113,13 @@ const deleteImport = async (req, res, next) => {
     }
 
     // Trừ stock trước khi xóa phiếu
-    for (const item of importDoc.items) {
-      try {
-        await axios.patch(
-          `http://localhost:4001/products/increase-stock/${item.productCode}`,
-          { quantity: -item.quantity }, // Trừ tồn kho
-        );
-      } catch (err) {
-        console.error(`Không trừ được stock cho ${item.productCode}`);
-      }
-    }
+    const rollbackUpdates = importDoc.items.map(item => 
+      axios.patch(`${PRODUCT_SERVICE_URL}/products/increase-stock/${item.productCode}`, {
+        quantity: -item.quantity 
+      }).catch(err => console.error(`Lỗi rollback stock cho ${item.productCode}:`, err.message))
+    );
+
+    await Promise.all(rollbackUpdates);
 
     await Import.findByIdAndDelete(id);
 

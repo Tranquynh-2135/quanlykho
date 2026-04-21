@@ -34,7 +34,4 @@ router.put("/:id", ctrl.updateProduct);
 router.delete("/:id", ctrl.deleteProduct);
 router.patch("/increase-stock/:code", ctrl.increaseStock);
 
-// Route tăng stock khi nhập kho
-router.patch("/increase-stock/:code", ctrl.increaseStock);
-
 module.exports = router;
