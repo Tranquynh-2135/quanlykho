@@ -1,7 +1,7 @@
 /* ==================== EXPORT CONTAINER ==================== */
 .export-container {
   padding: 20px;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   max-width: 1400px;
   margin: 0 auto;
   background: #f8f9fa;
@@ -202,17 +202,38 @@ textarea:focus {
   .form-row {
     flex-direction: column;
   }
-  
+
   .filter-row {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   table {
     font-size: 14px;
   }
-  
-  table th, table td {
+
+  table th,
+  table td {
     padding: 10px 6px;
   }
+}
+
+.type-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.type-khach_hang {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+.type-nha_phan_phoi {
+  background: #fef3c7;
+  color: #92400e;
+}
+.type-khac {
+  background: #f3e8ff;
+  color: #6b21a8;
 }

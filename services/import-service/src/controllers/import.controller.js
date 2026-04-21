@@ -46,6 +46,13 @@ const createImport = async (req, res, next) => {
       });
     }
 
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Phải có ít nhất một sản phẩm",
+      });
+    }
+
     // Tự sinh mã phiếu
     const now = new Date();
     const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "");
@@ -53,16 +60,26 @@ const createImport = async (req, res, next) => {
       String(now.getHours()).padStart(2, "0") +
       String(now.getMinutes()).padStart(2, "0") +
       String(now.getSeconds()).padStart(2, "0");
-
     const randomPart = Math.floor(10 + Math.random() * 90);
-
     const code = `NH-${dateStr}-${timeSuffix}${randomPart}`;
 
     let totalAmount = 0;
+
+    // Xử lý items - Đảm bảo unit được lưu rõ ràng
     const processedItems = items.map((item) => {
-      const totalPrice = item.quantity * item.unitPrice;
+      const qty = Number(item.quantity);
+      const price = Number(item.unitPrice);
+      const totalPrice = qty * price;
       totalAmount += totalPrice;
-      return { ...item, totalPrice };
+
+      return {
+        productCode: item.productCode,
+        quantity: qty,
+        unitPrice: price,
+        unit: (item.unit || "").toString().trim(), // ← Rất quan trọng
+        totalPrice: totalPrice,
+        expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
+      };
     });
 
     const newImport = new Import({
@@ -71,23 +88,21 @@ const createImport = async (req, res, next) => {
       warehouseId,
       items: processedItems,
       totalAmount,
-      notes,
+      notes: notes || "",
       status: "completed",
     });
 
     const savedImport = await newImport.save();
 
-    // Tăng stock...
+    // Tăng stock
     for (const item of processedItems) {
       try {
         await axios.patch(
-          `http://localhost:4001/products/increase-stock/${item.productCode}`,
-          {
-            quantity: item.quantity,
-          },
+          `${PRODUCT_SERVICE_URL}/products/increase-stock/${item.productCode}`,
+          { quantity: item.quantity },
         );
       } catch (err) {
-        console.error(err.message);
+        console.error(`Không tăng stock cho ${item.productCode}:`, err.message);
       }
     }
 
@@ -101,7 +116,6 @@ const createImport = async (req, res, next) => {
     next(err);
   }
 };
-
 // ====================== DELETE IMPORT ======================
 const deleteImport = async (req, res, next) => {
   try {

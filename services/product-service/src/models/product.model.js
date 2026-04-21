@@ -51,6 +51,16 @@ const productSchema = new mongoose.Schema(
     imageHash: { type: String },
     description: { type: String },
 
+    categoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+      default: null,
+    },
+    unit: {
+      type: String,
+      default: null, // nếu null thì dùng defaultUnit của category
+    },
+
     status: {
       type: String,
       enum: ["active", "inactive", "discontinued"],
