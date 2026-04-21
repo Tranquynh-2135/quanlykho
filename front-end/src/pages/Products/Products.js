@@ -94,7 +94,7 @@ const Products = () => {
       description: p.description || "",
       status: p.status || "active",
     });
-    setCurrentHash(p.imageHash || "");
+setCurrentHash(p.imageHash || "");
     setImagePreview(productApi.imageUrl(p.imageHash));
     setImageFile(null);
     setFormError("");
@@ -200,7 +200,7 @@ const Products = () => {
         <select
           className="pp-select"
           value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
+onChange={(e) => setFilterStatus(e.target.value)}
         >
           <option value="">Tất cả trạng thái</option>
           <option value="active">Hoạt động</option>
@@ -279,7 +279,7 @@ const Products = () => {
                     <div className="stock-info-row">
                       <span className="stock-info-label">🕐 HSD</span>
                       <span
-                        className={`stock-info-val ${isNearExpiry ? "val-danger" : "val-ok"}`}
+className={`stock-info-val ${isNearExpiry ? "val-danger" : "val-ok"}`}
                       >
                         {expDate}
                         {isNearExpiry && (
@@ -366,7 +366,7 @@ const Products = () => {
 
               <div className="pp-form-grid">
                 <label>
-                  Mã vật tư *
+Mã vật tư *
                   <input
                     name="code"
                     value={formData.code}
@@ -456,7 +456,7 @@ const Products = () => {
                   <textarea
                     name="description"
                     value={formData.description}
-                    onChange={handleFormChange}
+onChange={handleFormChange}
                     rows={3}
                   />
                 </label>
