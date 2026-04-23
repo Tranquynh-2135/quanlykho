@@ -47,4 +47,11 @@ const remove = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { getAll, getById, create, update, remove };
+const getCurrentStock = async (req, res, next) => {
+  try {
+    // Placeholder: Hiện tại tồn kho đang được quản lý tập trung tại Product Service
+    res.json({ success: true, quantity: 0 });
+  } catch (err) { next(err); }
+};
+
+module.exports = { getAll, getById, create, update, remove, getCurrentStock };

@@ -5,6 +5,7 @@ const getAllProducts = async (req, res, next) => {
   try {
     const { page = 1, limit = 20, search, status } = req.query;
     const query = {};
+
     if (search) {
       query.$or = [
         { code: { $regex: search.trim(), $options: "i" } },
@@ -15,6 +16,7 @@ const getAllProducts = async (req, res, next) => {
 
     const [products, total] = await Promise.all([
       Product.find(query)
+        .populate("categoryId", "name defaultUnit")
         .sort({ createdAt: -1 })
         .skip((Number(page) - 1) * Number(limit))
         .limit(Number(limit)),
@@ -39,22 +41,57 @@ const getAllProducts = async (req, res, next) => {
 // GET BY ID
 const getProductById = async (req, res, next) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findById(req.params.id).populate(
+      "categoryId",
+      "name defaultUnit",
+    );
+
     if (!product)
       return res
         .status(404)
         .json({ success: false, message: "Không tìm thấy sản phẩm" });
+
     res.json({ success: true, data: product });
   } catch (err) {
     next(err);
   }
 };
 
-// CREATE — strip các field cũ không còn dùng
+// CREATE
 const createProduct = async (req, res, next) => {
   try {
-    const { stock, images, supplier, ...safeData } = req.body;
-    const product = await new Product(safeData).save();
+    const { manufacturingDate, expiryDate } = req.body;
+
+    // Validation ngày
+    if (expiryDate) {
+      const exp = new Date(expiryDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (exp <= today) {
+        return res.status(400).json({
+          success: false,
+          message: "Hạn sử dụng phải là ngày trong tương lai",
+        });
+      }
+
+      if (!manufacturingDate) {
+        return res.status(400).json({
+          success: false,
+          message: "Phải nhập ngày sản xuất khi có hạn sử dụng",
+        });
+      }
+
+      const mfg = new Date(manufacturingDate);
+      if (mfg > today) {
+        return res.status(400).json({
+          success: false,
+          message: "Ngày sản xuất không được là ngày trong tương lai",
+        });
+      }
+    }
+
+    const product = await new Product(req.body).save();
     res.status(201).json({ success: true, data: product });
   } catch (err) {
     next(err);
@@ -64,15 +101,46 @@ const createProduct = async (req, res, next) => {
 // UPDATE
 const updateProduct = async (req, res, next) => {
   try {
-    const { stock, images, supplier, ...safeData } = req.body;
-    const product = await Product.findByIdAndUpdate(req.params.id, safeData, {
+    const { manufacturingDate, expiryDate } = req.body;
+
+    if (expiryDate) {
+      const exp = new Date(expiryDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (exp <= today) {
+        return res.status(400).json({
+          success: false,
+          message: "Hạn sử dụng phải là ngày trong tương lai",
+        });
+      }
+
+      if (!manufacturingDate) {
+        return res.status(400).json({
+          success: false,
+          message: "Phải nhập ngày sản xuất khi có hạn sử dụng",
+        });
+      }
+
+      const mfg = new Date(manufacturingDate);
+      if (mfg > today) {
+        return res.status(400).json({
+          success: false,
+          message: "Ngày sản xuất không được là ngày trong tương lai",
+        });
+      }
+    }
+
+    const product = await Product.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
     });
+
     if (!product)
       return res
         .status(404)
         .json({ success: false, message: "Không tìm thấy sản phẩm" });
+
     res.json({ success: true, data: product });
   } catch (err) {
     next(err);
@@ -118,10 +186,9 @@ const increaseStock = async (req, res, next) => {
       });
     }
 
-    // Cho phép quantity âm (để trừ stock khi xóa phiếu nhập)
     const product = await Product.findOneAndUpdate(
       { code: req.params.code },
-      { $inc: { stock: Number(quantity) } }, // $inc tự động xử lý + hoặc -
+      { $inc: { stock: Number(quantity) } },
       {
         new: true,
         runValidators: true,

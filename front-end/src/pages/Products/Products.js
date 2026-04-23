@@ -1,27 +1,18 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { productApi } from "../../services/productApi";
-import { supplierApi } from "../../services/supplierApi";
-import { warehouseApi } from "../../services/warehouseApi";
 import "./Products.css";
 
 const EMPTY_FORM = {
   code: "",
   name: "",
-  price: "",
-  costPrice: "",
-  minStock: "10",
-  maxStock: "",
-  location: "",
-  manufacturingDate: "",
-  expiryDate: "",
+  categoryId: "",
   description: "",
   status: "active",
 };
 
 const Products = () => {
   const [products, setProducts] = useState([]);
-  const [suppliers, setSuppliers] = useState([]);
-  const [warehouses, setWarehouses] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -38,13 +29,12 @@ const Products = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const [currentHash, setCurrentHash] = useState("");
 
+  // Load danh mục
   useEffect(() => {
-    supplierApi
-      .getAll({ status: "active" })
-      .then((r) => setSuppliers(r.data.data || []));
-    warehouseApi
-      .getAll({ status: "active" })
-      .then((r) => setWarehouses(r.data.data || []));
+    productApi
+      .getAllCategories()
+      .then((res) => setCategories(res.data.data || []))
+      .catch(console.error);
   }, []);
 
   const fetchProducts = useCallback(async () => {
@@ -56,8 +46,8 @@ const Products = () => {
       });
       setProducts(res.data.data || []);
       setError(null);
-    } catch {
-      setError("Không thể tải danh sách vật tư.");
+    } catch (err) {
+      setError("Không thể tải danh sách sản phẩm.");
     } finally {
       setLoading(false);
     }
@@ -82,20 +72,12 @@ const Products = () => {
     setFormData({
       code: p.code || "",
       name: p.name || "",
-      price: p.price || "",
-      costPrice: p.costPrice || "",
-      minStock: p.minStock ?? 10,
-      maxStock: p.maxStock ?? "",
-      location: p.location || "",
-      manufacturingDate: p.manufacturingDate
-        ? p.manufacturingDate.split("T")[0]
-        : "",
-      expiryDate: p.expiryDate ? p.expiryDate.split("T")[0] : "",
+      categoryId: p.categoryId?._id || p.categoryId || "",
       description: p.description || "",
       status: p.status || "active",
     });
-setCurrentHash(p.imageHash || "");
-    setImagePreview(productApi.imageUrl(p.imageHash));
+    setCurrentHash(p.imageHash || "");
+    setImagePreview(p.imageHash ? productApi.imageUrl(p.imageHash) : null);
     setImageFile(null);
     setFormError("");
     setModalMode("edit");
@@ -118,10 +100,11 @@ setCurrentHash(p.imageHash || "");
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError("");
+
     if (!formData.code.trim())
-      return setFormError("Mã vật tư không được trống.");
+      return setFormError("Mã sản phẩm không được để trống.");
     if (!formData.name.trim())
-      return setFormError("Tên vật tư không được trống.");
+      return setFormError("Tên sản phẩm không được để trống.");
 
     setSubmitting(true);
     try {
@@ -132,20 +115,26 @@ setCurrentHash(p.imageHash || "");
       }
 
       const payload = {
-        ...formData,
-        minStock: Number(formData.minStock) || 10,
-        maxStock:
-          formData.maxStock !== "" ? Number(formData.maxStock) : undefined,
+        code: formData.code.trim(),
+        name: formData.name.trim(),
+        categoryId: formData.categoryId || null,
+        description: formData.description.trim(),
+        status: formData.status,
         imageHash,
       };
 
-      if (modalMode === "add") await productApi.create(payload);
-      else await productApi.update(editingId, payload);
+      if (modalMode === "add") {
+        await productApi.create(payload);
+      } else {
+        await productApi.update(editingId, payload);
+      }
 
       setShowModal(false);
       fetchProducts();
     } catch (err) {
-      setFormError(err.response?.data?.message || "Có lỗi xảy ra.");
+      setFormError(
+        err.response?.data?.message || "Có lỗi xảy ra khi lưu sản phẩm.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -159,7 +148,7 @@ setCurrentHash(p.imageHash || "");
       setDeleteTarget(null);
       fetchProducts();
     } catch {
-      alert("Xóa thất bại.");
+      alert("Xóa sản phẩm thất bại.");
     } finally {
       setDeleting(false);
     }
@@ -172,27 +161,25 @@ setCurrentHash(p.imageHash || "");
 
   return (
     <div className="pp-root">
-      {/* Header */}
       <div className="pp-header">
         <div className="pp-title-block">
           <span className="pp-title-icon">📦</span>
           <div>
-            <h1 className="pp-title">Quản lý vật tư</h1>
-            <p className="pp-subtitle">{products.length} vật tư trong kho</p>
+            <h1 className="pp-title">Quản lý Sản phẩm</h1>
+            <p className="pp-subtitle">{products.length} sản phẩm</p>
           </div>
         </div>
         <button className="pp-btn pp-btn-primary" onClick={openAdd}>
-          <span>＋</span> Thêm vật tư
+          <span>＋</span> Thêm sản phẩm
         </button>
       </div>
 
-      {/* Filters */}
       <div className="pp-filters">
         <div className="pp-search-wrap">
           <span className="pp-search-icon">🔍</span>
           <input
             className="pp-search"
-            placeholder="Tìm theo mã hoặc tên vật tư..."
+            placeholder="Tìm theo mã hoặc tên sản phẩm..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -200,7 +187,7 @@ setCurrentHash(p.imageHash || "");
         <select
           className="pp-select"
           value={filterStatus}
-onChange={(e) => setFilterStatus(e.target.value)}
+          onChange={(e) => setFilterStatus(e.target.value)}
         >
           <option value="">Tất cả trạng thái</option>
           <option value="active">Hoạt động</option>
@@ -209,123 +196,80 @@ onChange={(e) => setFilterStatus(e.target.value)}
         </select>
       </div>
 
-      {/* ================== CARD GRID - ĐÃ SỬA HOÀN CHỈNH ================== */}
       {loading ? (
         <div className="pp-state">
           <div className="pp-spinner" />
-          <span>Đang tải...</span>
+          <span>Đang tải sản phẩm...</span>
         </div>
       ) : error ? (
         <div className="pp-state pp-error-state">⚠️ {error}</div>
       ) : products.length === 0 ? (
         <div className="pp-state">
-          <span style={{ fontSize: 48 }}>🗃️</span>
-          <p>Chưa có vật tư nào.</p>
+          <span style={{ fontSize: 48 }}>📦</span>
+          <p>Chưa có sản phẩm nào.</p>
         </div>
       ) : (
         <div className="pp-card-grid">
-          {products.map((p) => {
-            const mfgDate = p.manufacturingDate
-              ? new Date(p.manufacturingDate).toLocaleDateString("vi-VN")
-              : null;
-
-            const expDate = p.expiryDate
-              ? new Date(p.expiryDate).toLocaleDateString("vi-VN")
-              : null;
-
-            const isNearExpiry = p.expiryDate
-              ? (new Date(p.expiryDate) - new Date()) / (1000 * 60 * 60 * 24) <=
-                30
-              : false;
-
-            return (
-              <div key={p._id} className="pp-card">
-                {/* Ảnh */}
-                <div className="pp-card-img-wrap">
-                  {p.imageHash ? (
-                    <img
-                      src={productApi.imageUrl(p.imageHash)}
-                      alt={p.name}
-                      className="pp-card-img"
-                    />
-                  ) : (
-                    <div className="pp-card-no-img">📷</div>
-                  )}
-
-                  <span className={`pp-card-status pp-status-${p.status}`}>
-                    {statusLabel(p.status)}
-                  </span>
-
-                  {isNearExpiry && (
-                    <span className="stock-card-urgent-badge">⚡ Gần HSD</span>
-                  )}
-                </div>
-
-                {/* Thông tin chính */}
-                <div className="pp-card-body">
-                  <code className="pp-code">{p.code}</code>
-                  <h3 className="pp-card-name">{p.name}</h3>
-
-                  {/* Ngày sản xuất */}
-                  {mfgDate && (
-                    <div className="stock-info-row">
-                      <span className="stock-info-label">📅 NSX</span>
-                      <span className="stock-info-val">{mfgDate}</span>
-                    </div>
-                  )}
-
-                  {/* Hạn sử dụng */}
-                  {expDate && (
-                    <div className="stock-info-row">
-                      <span className="stock-info-label">🕐 HSD</span>
-                      <span
-className={`stock-info-val ${isNearExpiry ? "val-danger" : "val-ok"}`}
-                      >
-                        {expDate}
-                        {isNearExpiry && (
-                          <span className="stock-low-pill">Gần hết hạn</span>
-                        )}
-                      </span>
-                    </div>
-                  )}
-
-                  {p.description && (
-                    <p className="pp-card-desc">{p.description}</p>
-                  )}
-                </div>
-
-                {/* Footer */}
-                <div className="pp-card-footer">
-                  <button
-                    className="pp-btn-icon pp-btn-edit"
-                    onClick={() => openEdit(p)}
-                    title="Sửa"
-                  >
-                    ✏️ Sửa
-                  </button>
-                  <button
-                    className="pp-btn-icon pp-btn-del"
-                    onClick={() => setDeleteTarget(p)}
-                    title="Xóa"
-                  >
-                    🗑️
-                  </button>
-                </div>
+          {products.map((p) => (
+            <div key={p._id} className="pp-card">
+              <div className="pp-card-img-wrap">
+                {p.imageHash ? (
+                  <img
+                    src={productApi.imageUrl(p.imageHash)}
+                    alt={p.name}
+                    className="pp-card-img"
+                  />
+                ) : (
+                  <div className="pp-card-no-img">📷</div>
+                )}
+                <span className={`pp-card-status pp-status-${p.status}`}>
+                  {statusLabel(p.status)}
+                </span>
               </div>
-            );
-          })}
+
+              <div className="pp-card-body">
+                <code className="pp-code">{p.code}</code>
+                <h3 className="pp-card-name">{p.name}</h3>
+                {p.categoryId && (
+                  <div className="pp-card-category">
+                    Danh mục: <strong>{p.categoryId.name || "—"}</strong>
+                  </div>
+                )}
+                {p.description && (
+                  <p className="pp-card-desc">{p.description}</p>
+                )}
+              </div>
+
+              <div className="pp-card-footer">
+                <button
+                  className="pp-btn-icon pp-btn-edit"
+                  onClick={() => openEdit(p)}
+                  title="Sửa"
+                >
+                  ✏️
+                </button>
+                <button
+                  className="pp-btn-icon pp-btn-del"
+                  onClick={() => setDeleteTarget(p)}
+                  title="Xóa"
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Modal Thêm/Sửa */}
+      {/* Modal */}
       {showModal && (
         <div className="pp-overlay" onClick={() => setShowModal(false)}>
           <div className="pp-modal" onClick={(e) => e.stopPropagation()}>
             <div className="pp-modal-header">
               <h2>
                 {modalMode === "add"
-                  ? "➕ Thêm vật tư mới"
-                  : "✏️ Chỉnh sửa vật tư"}
+                  ? "➕ Thêm sản phẩm mới"
+                  : "✏️ Chỉnh sửa sản phẩm"}
               </h2>
               <button
                 className="pp-modal-close"
@@ -338,7 +282,6 @@ className={`stock-info-val ${isNearExpiry ? "val-danger" : "val-ok"}`}
             <form className="pp-form" onSubmit={handleSubmit}>
               {formError && <div className="pp-form-error">⚠️ {formError}</div>}
 
-              {/* Ảnh preview */}
               <div className="pp-modal-img-section">
                 <div className="pp-modal-img-wrap">
                   {imagePreview ? (
@@ -349,12 +292,12 @@ className={`stock-info-val ${isNearExpiry ? "val-danger" : "val-ok"}`}
                     />
                   ) : (
                     <div className="pp-modal-img-placeholder">
-                      📷<span>Chưa có ảnh</span>
+                      📷 Chưa có ảnh
                     </div>
                   )}
                 </div>
                 <label className="pp-img-upload-btn">
-                  🖼️ {imagePreview ? "Đổi ảnh" : "Tải ảnh lên"}
+                  {imagePreview ? "Đổi ảnh" : "Tải ảnh lên"}
                   <input
                     type="file"
                     accept="image/*"
@@ -366,48 +309,41 @@ className={`stock-info-val ${isNearExpiry ? "val-danger" : "val-ok"}`}
 
               <div className="pp-form-grid">
                 <label>
-Mã vật tư *
+                  Mã sản phẩm *
                   <input
                     name="code"
                     value={formData.code}
                     onChange={handleFormChange}
                     placeholder="SP001"
                     disabled={modalMode === "edit"}
+                    required
                   />
                 </label>
+
                 <label>
-                  Tên vật tư *
+                  Tên sản phẩm *
                   <input
                     name="name"
                     value={formData.name}
                     onChange={handleFormChange}
+                    required
                   />
                 </label>
 
                 <label>
-                  Ngày sản xuất
-                  <input
-                    type="date"
-                    name="manufacturingDate"
-                    value={formData.manufacturingDate || ""}
+                  Danh mục
+                  <select
+                    name="categoryId"
+                    value={formData.categoryId}
                     onChange={handleFormChange}
-                    max={new Date().toISOString().split("T")[0]}
-                  />
-                </label>
-
-                <label>
-                  Hạn sử dụng *
-                  <input
-                    type="date"
-                    name="expiryDate"
-                    value={formData.expiryDate || ""}
-                    onChange={handleFormChange}
-                    min={
-                      new Date(Date.now() + 86400000)
-                        .toISOString()
-                        .split("T")[0]
-                    }
-                  />
+                  >
+                    <option value="">— Chọn danh mục —</option>
+                    {categories.map((cat) => (
+                      <option key={cat._id} value={cat._id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
                 </label>
 
                 <label>
@@ -418,46 +354,19 @@ Mã vật tư *
                     onChange={handleFormChange}
                   >
                     <option value="active">Hoạt động</option>
-                    <option value="inactive">Ngừng KD</option>
-                    <option value="discontinued">Ngừng SX</option>
+                    <option value="inactive">Ngừng kinh doanh</option>
+                    <option value="discontinued">Ngừng sản xuất</option>
                   </select>
                 </label>
 
-                <label>
-                  Tồn tối thiểu
-                  <input
-                    name="minStock"
-                    type="number"
-                    value={formData.minStock}
-                    onChange={handleFormChange}
-                  />
-                </label>
-                <label>
-                  Tồn tối đa
-                  <input
-                    name="maxStock"
-                    type="number"
-                    value={formData.maxStock}
-                    onChange={handleFormChange}
-                  />
-                </label>
-                <label>
-                  Vị trí
-                  <input
-                    name="location"
-                    value={formData.location}
-                    onChange={handleFormChange}
-                    placeholder="Kệ A1..."
-                  />
-                </label>
-
                 <label className="pp-full-col">
-                  Mô tả
+                  Ghi chú
                   <textarea
                     name="description"
                     value={formData.description}
-onChange={handleFormChange}
+                    onChange={handleFormChange}
                     rows={3}
+                    placeholder="Mô tả thêm..."
                   />
                 </label>
               </div>
@@ -478,7 +387,7 @@ onChange={handleFormChange}
                   {submitting
                     ? "Đang lưu..."
                     : modalMode === "add"
-                      ? "Thêm vật tư"
+                      ? "Thêm sản phẩm"
                       : "Lưu thay đổi"}
                 </button>
               </div>
@@ -487,14 +396,13 @@ onChange={handleFormChange}
         </div>
       )}
 
-      {/* Delete Confirm */}
       {deleteTarget && (
         <div className="pp-overlay" onClick={() => setDeleteTarget(null)}>
           <div className="pp-confirm" onClick={(e) => e.stopPropagation()}>
             <div className="pp-confirm-icon">🗑️</div>
             <h3>Xác nhận xóa</h3>
             <p>
-              Bạn có chắc muốn xóa vật tư
+              Bạn có chắc muốn xóa sản phẩm
               <br />
               <strong>"{deleteTarget.name}"</strong>?
             </p>
@@ -511,7 +419,7 @@ onChange={handleFormChange}
                 onClick={handleDelete}
                 disabled={deleting}
               >
-                {deleting ? "Đang xóa..." : "Xóa vật tư"}
+                {deleting ? "Đang xóa..." : "Xóa"}
               </button>
             </div>
           </div>

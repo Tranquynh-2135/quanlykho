@@ -2,10 +2,11 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import Products from "./pages/Products/Products";
-import Import from "./pages/Import/Import"
+import Import from "./pages/Import/Import";
 import Suppliers from "./pages/Suppliers/Suppliers";
 import Warehouses from "./pages/Warehouses/Warehouses";
 import Users from "./pages/Users/Users";
+import Categories from "./pages/Categories/Categories";
 import Export from "./pages/Export/Export";
 
 function App() {
@@ -32,6 +33,7 @@ function App() {
             <Route path="/warehouses" element={<Warehouses />} />
             <Route path="/users" element={<Users />} />
             <Route path="/export" element={<Export />} />
+            <Route path="/categories" element={<Categories />} />
           </Routes>
         </div>
       </div>

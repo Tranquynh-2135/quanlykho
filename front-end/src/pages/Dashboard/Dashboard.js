@@ -88,7 +88,8 @@ const Dashboard = () => {
     const interval = setInterval(fetchAll, 30000);
     return () => clearInterval(interval);
   }, []);
-if (loading)
+
+  if (loading)
     return <div className="dashboard-loading">Đang tải dữ liệu...</div>;
   if (error) return <div className="dashboard-error">{error}</div>;
 
@@ -167,7 +168,7 @@ if (loading)
               return (
                 <div
                   key={p._id}
-className={`stock-product-card${isNearExpiry ? " card-near-expiry" : ""}`}
+                  className={`stock-product-card${isNearExpiry ? " card-near-expiry" : ""}`}
                 >
                   {/* Ảnh */}
                   <div className="stock-card-img-wrap">
@@ -238,7 +239,7 @@ className={`stock-product-card${isNearExpiry ? " card-near-expiry" : ""}`}
                     <div className="stock-minmax-row">
                       <span>
                         Tối thiểu: <strong>{p.minStock ?? 10}</strong>
-</span>
+                      </span>
                       {p.maxStock ? (
                         <span>
                           Tối đa: <strong>{p.maxStock}</strong>
@@ -309,7 +310,7 @@ className={`stock-product-card${isNearExpiry ? " card-near-expiry" : ""}`}
                       const info = getExpiryInfoFromDate(item.expiryDate);
                       return (
                         <div key={i} className="recent-product-row">
-<code style={{ fontSize: 11 }}>
+                          <code style={{ fontSize: 11 }}>
                             {item.productCode}
                           </code>
                           <span>SL: {item.quantity}</span>

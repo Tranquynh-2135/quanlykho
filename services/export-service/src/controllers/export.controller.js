@@ -1,7 +1,7 @@
 const Export = require("../models/export.model");
 const axios = require("axios");
 
-const PRODUCT_SERVICE_URL = process.env.PRODUCT_SERVICE_URL || "http://localhost:4001";
+const PRODUCT_SERVICE_URL = "http://localhost:4001";
 
 // ====================== GET ALL ======================
 const getAllExports = async (req, res, next) => {

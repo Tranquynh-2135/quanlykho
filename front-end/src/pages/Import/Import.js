@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Select from "react-select";
 import { importApi } from "../../services/importApi";
 import { supplierApi } from "../../services/supplierApi";
 import { warehouseApi } from "../../services/warehouseApi";
+import { productApi } from "../../services/productApi";
 import "./Import.css";
 
 const Import = () => {
   const [suppliers, setSuppliers] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [imports, setImports] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -19,29 +21,42 @@ const Import = () => {
   const [newSupplierName, setNewSupplierName] = useState("");
   const [newWarehouseName, setNewWarehouseName] = useState("");
 
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("");
+
   const [totalAmount, setTotalAmount] = useState(0);
 
   const [formData, setFormData] = useState({
     supplierId: "",
     warehouseId: "",
     notes: "",
-    items: [{ productCode: "", quantity: 1, unitPrice: 0, expiryDate: "" }],
+    items: [
+      {
+        productCode: "",
+        quantity: 1,
+        unitPrice: 0,
+        expiryDate: "",
+        unit: "",
+      },
+    ],
   });
 
   // Load dữ liệu
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [supRes, whRes, prodRes, impRes] = await Promise.all([
+        setLoading(true);
+        const [supRes, whRes, prodRes, catRes, impRes] = await Promise.all([
           supplierApi.getAll({ status: "active" }),
           warehouseApi.getAll({ status: "active" }),
           fetch("http://localhost:4001/products").then((r) => r.json()),
+          productApi.getAllCategories(),
           importApi.getAll(),
         ]);
 
         setSuppliers(supRes.data.data || []);
         setWarehouses(whRes.data.data || []);
-        setProducts(prodRes.data || prodRes);
+        setProducts(prodRes.data || prodRes || []);
+        setCategories(catRes.data.data || []);
         setImports(impRes.data.data || []);
       } catch (err) {
         console.error("Lỗi tải dữ liệu:", err);
@@ -61,10 +76,9 @@ const Import = () => {
     setTotalAmount(sum);
   }, [formData.items]);
 
-  // Lọc lịch sử phiếu nhập
+  // Lọc lịch sử
   const filteredImports = React.useMemo(() => {
     if (!search.trim()) return imports;
-
     const keyword = search.toLowerCase().trim();
     return imports.filter((imp) => {
       const sName =
@@ -77,7 +91,6 @@ const Import = () => {
       const dateStr = new Date(imp.importDate)
         .toLocaleDateString("vi-VN")
         .toLowerCase();
-
       return (
         imp.code?.toLowerCase().includes(keyword) ||
         sName.includes(keyword) ||
@@ -87,42 +100,50 @@ const Import = () => {
     });
   }, [imports, suppliers, warehouses, search]);
 
-  // ====================== XÓA PHIẾU NHẬP ======================
-  const handleDeleteImport = async (id, code) => {
-    if (
-      !window.confirm(
-        `Bạn có chắc chắn muốn xóa phiếu nhập kho "${code}"?\n\nHành động này sẽ trừ lại tồn kho.`,
-      )
-    ) {
-      return;
+  // Filter theo danh mục
+  const filteredProducts = useMemo(() => {
+    if (!selectedCategoryFilter) return products;
+    return products.filter((p) => {
+      const catId = p.categoryId?._id || p.categoryId;
+      return catId === selectedCategoryFilter;
+    });
+  }, [products, selectedCategoryFilter]);
+
+  // Product Options
+  const productOptions = useMemo(() => {
+    const groups = categories
+      .map((cat) => {
+        const prodsInCat = filteredProducts.filter((p) => {
+          const catId = p.categoryId?._id || p.categoryId;
+          return catId === cat._id;
+        });
+        if (prodsInCat.length === 0) return null;
+        return {
+          label: cat.name,
+          options: prodsInCat.map((p) => ({
+            value: p.code,
+            label: `${p.code} — ${p.name} (${p.unit || cat.defaultUnit || "đơn vị"})`,
+            expiryDays: p.expiryDays,
+            categoryName: cat.name,
+          })),
+        };
+      })
+      .filter(Boolean);
+
+    const noCategoryProds = filteredProducts.filter((p) => !p.categoryId);
+    if (noCategoryProds.length > 0) {
+      groups.unshift({
+        label: "Khác (Chưa phân loại)",
+        options: noCategoryProds.map((p) => ({
+          value: p.code,
+          label: `${p.code} — ${p.name}`,
+          expiryDays: p.expiryDays,
+          categoryName: "Chưa phân loại",
+        })),
+      });
     }
-
-    try {
-      const res = await importApi.delete(id);
-
-      if (res.data.success) {
-        alert(`✅ Đã xóa phiếu ${code} thành công và đã cập nhật tồn kho!`);
-
-        // Refresh danh sách
-        const fresh = await importApi.getAll();
-        setImports(fresh.data.data || []);
-      }
-    } catch (err) {
-      alert(
-        "❌ Lỗi khi xóa phiếu: " + (err.response?.data?.message || err.message),
-      );
-    }
-  };
-
-  // ====================== CÁC HÀM KHÁC ======================
-  const getExpiryInfo = (expiryDate) => {
-    if (!expiryDate) return null;
-    const days = Math.ceil((new Date(expiryDate) - new Date()) / 86400000);
-    if (days <= 0) return { label: "Hết hạn", cls: "expiry-expired" };
-    if (days <= 10) return { label: `Còn ${days} ngày`, cls: "expiry-red" };
-    if (days <= 30) return { label: `Còn ${days} ngày`, cls: "expiry-yellow" };
-    return { label: `Còn ${days} ngày`, cls: "expiry-green" };
-  };
+    return groups;
+  }, [filteredProducts, categories]);
 
   const handleItemChange = (index, field, value) => {
     const newItems = [...formData.items];
@@ -137,6 +158,7 @@ const Import = () => {
           expiry.setDate(expiry.getDate() + selected.expiryDays);
           newItems[index].expiryDate = expiry.toISOString().split("T")[0];
         }
+        newItems[index].unit = selected.unit || "";
       }
     }
     setFormData((prev) => ({ ...prev, items: newItems }));
@@ -147,7 +169,13 @@ const Import = () => {
       ...prev,
       items: [
         ...prev.items,
-        { productCode: "", quantity: 1, unitPrice: 0, expiryDate: "" },
+        {
+          productCode: "",
+          quantity: 1,
+          unitPrice: 0,
+          expiryDate: "",
+          unit: "",
+        },
       ],
     }));
   };
@@ -176,6 +204,7 @@ const Import = () => {
           productCode: item.productCode,
           quantity: Number(item.quantity),
           unitPrice: Number(item.unitPrice),
+          unit: item.unit?.trim() || "",
           expiryDate: item.expiryDate || undefined,
         })),
       };
@@ -190,9 +219,16 @@ const Import = () => {
           warehouseId: "",
           notes: "",
           items: [
-            { productCode: "", quantity: 1, unitPrice: 0, expiryDate: "" },
+            {
+              productCode: "",
+              quantity: 1,
+              unitPrice: 0,
+              expiryDate: "",
+              unit: "",
+            },
           ],
         });
+        setSelectedCategoryFilter("");
 
         const fresh = await importApi.getAll();
         setImports(fresh.data.data || []);
@@ -234,7 +270,28 @@ const Import = () => {
     }
   };
 
-  // Options cho react-select
+  const handleDeleteImport = async (id, code) => {
+    if (
+      !window.confirm(
+        `Bạn có chắc chắn muốn xóa phiếu nhập kho "${code}"?\n\nHành động này sẽ trừ lại tồn kho.`,
+      )
+    )
+      return;
+
+    try {
+      const res = await importApi.delete(id);
+      if (res.data.success) {
+        alert(`✅ Đã xóa phiếu ${code} thành công!`);
+        const fresh = await importApi.getAll();
+        setImports(fresh.data.data || []);
+      }
+    } catch (err) {
+      alert(
+        "❌ Lỗi khi xóa phiếu: " + (err.response?.data?.message || err.message),
+      );
+    }
+  };
+
   const supplierOptions = suppliers.map((s) => ({
     value: s._id,
     label: `${s.name}${s.phone ? ` (${s.phone})` : ""}`,
@@ -245,17 +302,10 @@ const Import = () => {
     label: w.name,
   }));
 
-  const productOptions = products.map((p) => ({
-    value: p.code,
-    label: `${p.code} — ${p.name}`,
-    expiryDays: p.expiryDays,
-  }));
-
   if (loading) return <div className="loading">Đang tải dữ liệu...</div>;
 
   return (
     <div className="im-root">
-      {/* Header */}
       <div className="im-header">
         <div className="im-title-block">
           <span className="im-title-icon">📥</span>
@@ -266,7 +316,6 @@ const Import = () => {
         </div>
       </div>
 
-      {/* Form tạo phiếu */}
       <div className="im-form-card">
         <h2>Tạo phiếu nhập kho mới</h2>
         <form onSubmit={handleSubmit}>
@@ -335,7 +384,27 @@ const Import = () => {
             </div>
           </div>
 
-          {/* Chi tiết sản phẩm nhập */}
+          <div className="im-form-group" style={{ marginBottom: "24px" }}>
+            <label>Lọc sản phẩm theo danh mục</label>
+            <select
+              value={selectedCategoryFilter}
+              onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "10px 14px",
+                border: "1.5px solid #e2e8f0",
+                borderRadius: "10px",
+              }}
+            >
+              <option value="">Tất cả danh mục</option>
+              {categories.map((cat) => (
+                <option key={cat._id} value={cat._id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="items-section">
             <h3>Chi tiết sản phẩm nhập</h3>
             <div className="items-table-wrap">
@@ -343,9 +412,10 @@ const Import = () => {
                 <thead>
                   <tr>
                     <th style={{ minWidth: 260 }}>Sản phẩm</th>
+                    <th style={{ minWidth: 150 }}>Danh mục</th>
                     <th style={{ minWidth: 100 }}>Số lượng</th>
+                    <th style={{ minWidth: 130 }}>Đơn vị tính</th>
                     <th style={{ minWidth: 140 }}>Giá vốn (₫)</th>
-                    <th style={{ minWidth: 130 }}>NSX</th>
                     <th style={{ minWidth: 130 }}>HSD</th>
                     <th style={{ minWidth: 130 }}>Thành tiền</th>
                     <th style={{ minWidth: 60 }}></th>
@@ -356,17 +426,19 @@ const Import = () => {
                     const selectedProduct = products.find(
                       (p) => p.code === item.productCode,
                     );
+                    const categoryName =
+                      selectedProduct?.categoryId?.name || "—";
 
                     return (
                       <tr key={index}>
-                        {/* Sản phẩm */}
                         <td>
                           <Select
                             options={productOptions}
                             value={
-                              productOptions.find(
-                                (o) => o.value === item.productCode,
-                              ) || null
+                              productOptions
+                                .flatMap((g) => g.options || [])
+                                .find((o) => o.value === item.productCode) ||
+                              null
                             }
                             onChange={(sel) =>
                               handleItemChange(
@@ -375,7 +447,7 @@ const Import = () => {
                                 sel ? sel.value : "",
                               )
                             }
-                            placeholder="Tìm và chọn sản phẩm..."
+                            placeholder="Chọn sản phẩm..."
                             isSearchable
                             className="react-select-container"
                             classNamePrefix="react-select"
@@ -383,8 +455,9 @@ const Import = () => {
                             menuPosition="fixed"
                           />
                         </td>
-
-                        {/* Số lượng */}
+                        <td style={{ fontWeight: 500, color: "#3b6ef8" }}>
+                          {categoryName}
+                        </td>
                         <td>
                           <input
                             type="number"
@@ -400,8 +473,17 @@ const Import = () => {
                             required
                           />
                         </td>
-
-                        {/* Giá vốn (có thể sửa) */}
+                        <td>
+                          <input
+                            type="text"
+                            value={item.unit || ""}
+                            onChange={(e) =>
+                              handleItemChange(index, "unit", e.target.value)
+                            }
+                            placeholder="kg, thùng, chai..."
+                            style={{ textAlign: "center" }}
+                          />
+                        </td>
                         <td>
                           <input
                             type="number"
@@ -418,34 +500,19 @@ const Import = () => {
                             required
                           />
                         </td>
-
-                        {/* NSX - Chỉ hiển thị, không cho sửa */}
                         <td className="date-cell">
-                          {selectedProduct?.manufacturingDate
-                            ? new Date(
-                                selectedProduct.manufacturingDate,
-                              ).toLocaleDateString("vi-VN")
+                          {item.expiryDate
+                            ? new Date(item.expiryDate).toLocaleDateString(
+                                "vi-VN",
+                              )
                             : "—"}
                         </td>
-
-                        {/* HSD - Chỉ hiển thị, không cho sửa */}
-                        <td className="date-cell">
-                          {selectedProduct?.expiryDate
-                            ? new Date(
-                                selectedProduct.expiryDate,
-                              ).toLocaleDateString("vi-VN")
-                            : "—"}
-                        </td>
-
-                        {/* Thành tiền */}
                         <td className="total-cell">
                           {(
                             Number(item.quantity) * Number(item.unitPrice)
                           ).toLocaleString("vi-VN")}{" "}
                           ₫
                         </td>
-
-                        {/* Xóa */}
                         <td>
                           <button
                             type="button"
@@ -493,7 +560,7 @@ const Import = () => {
         </form>
       </div>
 
-      {/* Lịch sử phiếu nhập - ĐÃ CÓ NÚT XÓA */}
+      {/* Lịch sử phiếu nhập */}
       <div className="im-history">
         <h2>Lịch sử phiếu nhập kho</h2>
         <input
@@ -580,7 +647,7 @@ const Import = () => {
         </table>
       </div>
 
-      {/* Modal chi tiết phiếu */}
+      {/* Modal chi tiết phiếu - HIỂN THỊ ĐƠN VỊ TÍNH */}
       {detailTarget && (
         <div className="modal-overlay" onClick={() => setDetailTarget(null)}>
           <div className="modal-detail" onClick={(e) => e.stopPropagation()}>
@@ -620,14 +687,15 @@ const Import = () => {
               )}
             </div>
 
-            {/* Bảng chi tiết sản phẩm trong phiếu */}
             <table className="detail-table">
               <thead>
                 <tr>
                   <th>#</th>
                   <th>Mã SP</th>
                   <th>Tên sản phẩm</th>
+                  <th>Danh mục</th>
                   <th>Số lượng</th>
+                  <th>Đơn vị tính</th>
                   <th>Giá vốn</th>
                   <th>NSX</th>
                   <th>HSD</th>
@@ -639,20 +707,7 @@ const Import = () => {
                   const prod = products.find(
                     (p) => p.code === item.productCode,
                   );
-
-                  const mfgDate =
-                    item.manufacturingDate || prod?.manufacturingDate
-                      ? new Date(
-                          item.manufacturingDate || prod.manufacturingDate,
-                        ).toLocaleDateString("vi-VN")
-                      : "—";
-
-                  const expDate =
-                    item.expiryDate || prod?.expiryDate
-                      ? new Date(
-                          item.expiryDate || prod.expiryDate,
-                        ).toLocaleDateString("vi-VN")
-                      : "—";
+                  const categoryName = prod?.categoryId?.name || "—";
 
                   return (
                     <tr key={i}>
@@ -661,10 +716,26 @@ const Import = () => {
                         <code className="im-code">{item.productCode}</code>
                       </td>
                       <td>{prod?.name || item.productCode}</td>
+                      <td>{categoryName}</td>
                       <td>{item.quantity}</td>
+                      <td>
+                        <strong>{item.unit || "—"}</strong>
+                      </td>
                       <td>{item.unitPrice?.toLocaleString("vi-VN")} ₫</td>
-                      <td>{mfgDate}</td>
-                      <td>{expDate}</td>
+                      <td>
+                        {item.manufacturingDate || prod?.manufacturingDate
+                          ? new Date(
+                              item.manufacturingDate || prod.manufacturingDate,
+                            ).toLocaleDateString("vi-VN")
+                          : "—"}
+                      </td>
+                      <td>
+                        {item.expiryDate || prod?.expiryDate
+                          ? new Date(
+                              item.expiryDate || prod.expiryDate,
+                            ).toLocaleDateString("vi-VN")
+                          : "—"}
+                      </td>
                       <td>
                         <strong>
                           {item.totalPrice?.toLocaleString("vi-VN")} ₫
@@ -677,7 +748,7 @@ const Import = () => {
               <tfoot>
                 <tr>
                   <td
-                    colSpan="7"
+                    colSpan="9"
                     style={{
                       textAlign: "right",
                       fontWeight: 600,
@@ -698,7 +769,7 @@ const Import = () => {
         </div>
       )}
 
-      {/* Modal thêm Nhà cung cấp */}
+      {/* Modal thêm NCC & Kho */}
       {showSupplierModal && (
         <div
           className="modal-overlay"
@@ -720,7 +791,6 @@ const Import = () => {
         </div>
       )}
 
-      {/* Modal thêm Kho */}
       {showWarehouseModal && (
         <div
           className="modal-overlay"
