@@ -16,6 +16,13 @@ const Import = () => {
   const [loading, setLoading] = useState(true);
   const [detailTarget, setDetailTarget] = useState(null);
 
+  // State cho bộ lọc Excel
+  const [exportStartDate, setExportStartDate] = useState("");
+  const [exportEndDate, setExportEndDate] = useState("");
+  const [exportSupplierId, setExportSupplierId] = useState("");
+  const [exportWarehouseId, setExportWarehouseId] = useState("");
+  const [exportProductCode, setExportProductCode] = useState("");
+
   const [showSupplierModal, setShowSupplierModal] = useState(false);
   const [showWarehouseModal, setShowWarehouseModal] = useState(false);
   const [newSupplierName, setNewSupplierName] = useState("");
@@ -108,6 +115,34 @@ const Import = () => {
       return catId === selectedCategoryFilter;
     });
   }, [products, selectedCategoryFilter]);
+
+  // Options cho bộ lọc Excel (không phụ thuộc vào bộ lọc category của form)
+  const allProductOptions = useMemo(() => {
+    return products.map((p) => ({
+      value: p.code,
+      label: `${p.code} — ${p.name}`,
+    }));
+  }, [products]);
+
+  const supplierFilterOptions = useMemo(() => {
+    return [
+      { value: "", label: "Tất cả nhà cung cấp" },
+      ...suppliers.map((s) => ({
+        value: s._id,
+        label: s.name,
+      })),
+    ];
+  }, [suppliers]);
+
+  const warehouseFilterOptions = useMemo(() => {
+    return [
+      { value: "", label: "Tất cả các kho" },
+      ...warehouses.map((w) => ({
+        value: w._id,
+        label: w.name,
+      })),
+    ];
+  }, [warehouses]);
 
   // Product Options
   const productOptions = useMemo(() => {
@@ -290,6 +325,17 @@ const Import = () => {
         "❌ Lỗi khi xóa phiếu: " + (err.response?.data?.message || err.message),
       );
     }
+  };
+
+  const handleExportExcel = () => {
+    const params = {
+      startDate: exportStartDate,
+      endDate: exportEndDate,
+      supplierId: exportSupplierId,
+      warehouseId: exportWarehouseId,
+      productCode: exportProductCode,
+    };
+    window.open(importApi.getExportUrl(params), "_blank");
   };
 
   const supplierOptions = suppliers.map((s) => ({
@@ -562,10 +608,98 @@ const Import = () => {
 
       {/* Lịch sử phiếu nhập */}
       <div className="im-history">
-        <h2>Lịch sử phiếu nhập kho</h2>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+          <h2 style={{ margin: 0 }}>Lịch sử phiếu nhập kho</h2>
+          <button className="im-btn-detail" onClick={handleExportExcel} style={{ padding: "8px 16px", background: "#15803d", color: "#fff", border: "none", fontWeight: "600" }}>
+            📊 Xuất Excel báo cáo
+          </button>
+        </div>
+
+        {/* Bộ lọc báo cáo */}
+        <div className="im-export-filters" style={{ 
+          display: "grid", 
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", 
+          gap: "12px", 
+          marginBottom: "16px", 
+          background: "#fff", 
+          padding: "16px", 
+          borderRadius: "12px", 
+          border: "1.5px solid #e2e8f0" 
+        }}>
+          <div className="im-form-group">
+            <label style={{ fontSize: "12px" }}>Từ ngày</label>
+            <input type="date" value={exportStartDate} onChange={(e) => setExportStartDate(e.target.value)} />
+          </div>
+          <div className="im-form-group">
+            <label style={{ fontSize: "12px" }}>Đến ngày</label>
+            <input type="date" value={exportEndDate} onChange={(e) => setExportEndDate(e.target.value)} />
+          </div>
+          <div className="im-form-group">
+            <label style={{ fontSize: "12px" }}>Nhà cung cấp</label>
+            <Select
+              options={supplierFilterOptions}
+              value={supplierFilterOptions.find(o => o.value === exportSupplierId) || supplierFilterOptions[0]}
+              onChange={(sel) => setExportSupplierId(sel?.value || "")}
+              placeholder="Chọn NCC..."
+              isSearchable
+              className="react-select-container"
+              classNamePrefix="react-select"
+              styles={{ control: (base) => ({ ...base, minHeight: '38px', borderRadius: '8px' }) }}
+            />
+          </div>
+          <div className="im-form-group">
+            <label style={{ fontSize: "12px" }}>Kho nhập</label>
+            <Select
+              options={warehouseFilterOptions}
+              value={warehouseFilterOptions.find(o => o.value === exportWarehouseId) || warehouseFilterOptions[0]}
+              onChange={(sel) => setExportWarehouseId(sel?.value || "")}
+              placeholder="Chọn kho..."
+              isSearchable
+              className="react-select-container"
+              classNamePrefix="react-select"
+              styles={{ control: (base) => ({ ...base, minHeight: '38px', borderRadius: '8px' }) }}
+            />
+          </div>
+          <div className="im-form-group">
+            <label style={{ fontSize: "12px" }}>Mã sản phẩm</label>
+            <Select
+              options={[{ value: "", label: "Tất cả sản phẩm" }, ...allProductOptions]}
+              value={
+                exportProductCode 
+                  ? allProductOptions.find(o => o.value === exportProductCode) 
+                  : { value: "", label: "Tất cả sản phẩm" }
+              }
+              onChange={(sel) => setExportProductCode(sel?.value || "")}
+              placeholder="Chọn sản phẩm..."
+              isSearchable
+              className="react-select-container"
+              classNamePrefix="react-select"
+              styles={{
+                control: (base) => ({ ...base, minHeight: '38px', borderRadius: '8px' })
+              } }
+            />
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-end" }}>
+            <button 
+              type="button"
+              className="btn-remove" 
+              style={{ width: "100%", height: "38px" }}
+              onClick={() => {
+                setExportStartDate("");
+                setExportEndDate("");
+                setExportSupplierId("");
+                setExportWarehouseId("");
+                setExportProductCode("");
+              }}
+            >
+              Xóa lọc
+            </button>
+          </div>
+        </div>
+
         <input
           className="im-search"
-          placeholder="Tìm theo mã phiếu, ngày nhập, nhà cung cấp, kho..."
+          placeholder="Tìm nhanh trong danh sách phiếu hiển thị bên dưới..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
