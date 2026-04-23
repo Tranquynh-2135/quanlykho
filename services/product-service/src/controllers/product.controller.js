@@ -1,5 +1,28 @@
 const Product = require("../models/product.model");
 
+// Helper kiểm tra ngày tháng
+const validateProductDates = (manufacturingDate, expiryDate) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (manufacturingDate) {
+    const mfg = new Date(manufacturingDate);
+    if (mfg > today) return "Ngày sản xuất không được là ngày trong tương lai";
+  }
+
+  if (expiryDate) {
+    const exp = new Date(expiryDate);
+    if (exp <= today) return "Hạn sử dụng phải là ngày trong tương lai";
+    
+    if (!manufacturingDate) return "Phải nhập ngày sản xuất khi có hạn sử dụng";
+    
+    const mfg = new Date(manufacturingDate);
+    const expDate = new Date(expiryDate);
+    if (mfg >= expDate) return "Ngày sản xuất phải trước hạn sử dụng";
+  }
+  return null;
+};
+
 // GET ALL
 const getAllProducts = async (req, res, next) => {
   try {
@@ -62,34 +85,8 @@ const createProduct = async (req, res, next) => {
   try {
     const { manufacturingDate, expiryDate } = req.body;
 
-    // Validation ngày
-    if (expiryDate) {
-      const exp = new Date(expiryDate);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      if (exp <= today) {
-        return res.status(400).json({
-          success: false,
-          message: "Hạn sử dụng phải là ngày trong tương lai",
-        });
-      }
-
-      if (!manufacturingDate) {
-        return res.status(400).json({
-          success: false,
-          message: "Phải nhập ngày sản xuất khi có hạn sử dụng",
-        });
-      }
-
-      const mfg = new Date(manufacturingDate);
-      if (mfg > today) {
-        return res.status(400).json({
-          success: false,
-          message: "Ngày sản xuất không được là ngày trong tương lai",
-        });
-      }
-    }
+    const dateError = validateProductDates(manufacturingDate, expiryDate);
+    if (dateError) return res.status(400).json({ success: false, message: dateError });
 
     const product = await new Product(req.body).save();
     res.status(201).json({ success: true, data: product });
@@ -103,33 +100,8 @@ const updateProduct = async (req, res, next) => {
   try {
     const { manufacturingDate, expiryDate } = req.body;
 
-    if (expiryDate) {
-      const exp = new Date(expiryDate);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      if (exp <= today) {
-        return res.status(400).json({
-          success: false,
-          message: "Hạn sử dụng phải là ngày trong tương lai",
-        });
-      }
-
-      if (!manufacturingDate) {
-        return res.status(400).json({
-          success: false,
-          message: "Phải nhập ngày sản xuất khi có hạn sử dụng",
-        });
-      }
-
-      const mfg = new Date(manufacturingDate);
-      if (mfg > today) {
-        return res.status(400).json({
-          success: false,
-          message: "Ngày sản xuất không được là ngày trong tương lai",
-        });
-      }
-    }
+    const dateError = validateProductDates(manufacturingDate, expiryDate);
+    if (dateError) return res.status(400).json({ success: false, message: dateError });
 
     const product = await Product.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
@@ -177,7 +149,7 @@ const uploadImage = (req, res) => {
 // ====================== INCREASE / DECREASE STOCK ======================
 const increaseStock = async (req, res, next) => {
   try {
-    let { quantity } = req.body;
+    let { quantity, manufacturingDate, expiryDate } = req.body;
 
     if (quantity === undefined || quantity === null) {
       return res.status(400).json({
@@ -186,9 +158,21 @@ const increaseStock = async (req, res, next) => {
       });
     }
 
+    const dateError = validateProductDates(manufacturingDate, expiryDate);
+    if (dateError) return res.status(400).json({ success: false, message: dateError });
+
+    const updateData = { 
+      $inc: { stock: Number(quantity) },
+      $set: {}
+    };
+    
+    if (manufacturingDate) updateData.$set.manufacturingDate = new Date(manufacturingDate);
+    if (expiryDate) updateData.$set.expiryDate = new Date(expiryDate);
+    if (Object.keys(updateData.$set).length === 0) delete updateData.$set;
+
     const product = await Product.findOneAndUpdate(
       { code: req.params.code },
-      { $inc: { stock: Number(quantity) } },
+      updateData,
       {
         new: true,
         runValidators: true,

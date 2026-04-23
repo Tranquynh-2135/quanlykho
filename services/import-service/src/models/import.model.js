@@ -19,6 +19,7 @@ const importSchema = new mongoose.Schema(
         unitPrice: { type: Number, required: true, min: 0 },
         unit: { type: String, default: "" }, // ← Phải có dòng này
         totalPrice: { type: Number, default: 0 },
+        manufacturingDate: { type: Date, default: null },
         expiryDate: { type: Date, default: null },
       },
     ],
