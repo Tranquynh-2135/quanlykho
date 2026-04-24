@@ -39,6 +39,7 @@ const Import = () => {
         productCode: "",
         quantity: 1,
         unitPrice: 0,
+        manufacturingDate: "",
         expiryDate: "",
         unit: "",
       },
@@ -190,7 +191,14 @@ const Import = () => {
       ...prev,
       items: [
         ...prev.items,
-        { productCode: "", quantity: 1, unitPrice: 0, expiryDate: "", unit: "" },
+        {
+          productCode: "",
+          quantity: 1,
+          unitPrice: 0,
+          manufacturingDate: "",
+          expiryDate: "",
+          unit: ""
+        },
       ],
     }));
   };
@@ -220,6 +228,7 @@ const Import = () => {
           quantity: Number(item.quantity),
           unitPrice: Number(item.unitPrice),
           unit: item.unit?.trim() || "",
+          manufacturingDate: item.manufacturingDate || undefined,
           expiryDate: item.expiryDate || undefined,
         })),
       };
@@ -233,7 +242,16 @@ const Import = () => {
           supplierId: "",
           warehouseId: "",
           notes: "",
-          items: [{ productCode: "", quantity: 1, unitPrice: 0, expiryDate: "", unit: "" }],
+          items: [
+            {
+              productCode: "",
+              quantity: 1,
+              unitPrice: 0,
+              manufacturingDate: "",
+              expiryDate: "",
+              unit: ""
+            }
+          ],
         });
         setSelectedCategoryFilter("");
 
@@ -837,6 +855,7 @@ const Import = () => {
                     <th style={{ minWidth: 100 }}>Số lượng</th>
                     <th style={{ minWidth: 130 }}>Đơn vị tính</th>
                     <th style={{ minWidth: 140 }}>Giá vốn (₫)</th>
+                    <th style={{ minWidth: 150 }}>NSX</th>
                     <th style={{ minWidth: 130 }}>HSD</th>
                     <th style={{ minWidth: 130 }}>Thành tiền</th>
                     <th style={{ minWidth: 60 }}></th>
@@ -876,8 +895,13 @@ const Import = () => {
                           <input type="number" min="0" step="100" value={item.unitPrice}
                             onChange={(e) => handleItemChange(index, "unitPrice", e.target.value)} required />
                         </td>
-                        <td className="date-cell">
-                          {item.expiryDate ? new Date(item.expiryDate).toLocaleDateString("vi-VN") : "—"}
+                        <td>
+                          <input type="date" value={item.manufacturingDate || ""}
+                            onChange={(e) => handleItemChange(index, "manufacturingDate", e.target.value)} />
+                        </td>
+                        <td>
+                          <input type="date" value={item.expiryDate || ""}
+                            onChange={(e) => handleItemChange(index, "expiryDate", e.target.value)} />
                         </td>
                         <td className="total-cell">
                           {(Number(item.quantity) * Number(item.unitPrice)).toLocaleString("vi-VN")} ₫
