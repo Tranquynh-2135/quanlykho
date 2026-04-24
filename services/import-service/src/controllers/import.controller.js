@@ -4,8 +4,8 @@ const ExcelJS = require("exceljs");
 const axios = require("axios");
 
 const PRODUCT_SERVICE_URL = "http://localhost:4001";
-const SUPPLIER_SERVICE_URL = "http://localhost:4002";
-const WAREHOUSE_SERVICE_URL = "http://localhost:4003";
+const SUPPLIER_SERVICE_URL = "http://localhost:4004"; 
+const WAREHOUSE_SERVICE_URL = "http://localhost:4005"; 
 
 // ====================== GET ALL ======================
 const getAllImports = async (req, res, next) => {
@@ -207,10 +207,10 @@ const exportExcel = async (req, res, next) => {
 
     try {
       const [supRes, whRes, prodRes, catRes] = await Promise.all([
-        axios.get(`${SUPPLIER_SERVICE_URL}/suppliers`).catch((err) => { console.error("Supplier service error:", err.message); return { data: { data: [] } }; }),
+        axios.get(`${SUPPLIER_SERVICE_URL}/suppliers`).catch((err) => { console.error("Supplier service error (4004):", err.message); return { data: { data: [] } }; }),
         axios.get(`${WAREHOUSE_SERVICE_URL}/warehouses`).catch((err) => { console.error("Warehouse service error:", err.message); return { data: { data: [] } }; }),
         axios.get(`${PRODUCT_SERVICE_URL}/products`).catch((err) => { console.error("Product service error:", err.message); return { data: { data: [] } }; }),
-        axios.get(`${PRODUCT_SERVICE_URL}/categories`).catch((err) => { console.error("Category service error:", err.message); return { data: { data: [] } }; })
+        axios.get(`${PRODUCT_SERVICE_URL}/products/categories`).catch((err) => { console.error("Category service error:", err.message); return { data: { data: [] } }; })
       ]);
       
       const sups = supRes.data?.data || supRes.data || [];
