@@ -35,11 +35,19 @@ app.get("/", (req, res) => {
 app.use("/products", productRoutes);
 
 // Global error handler — phải là function (err, req, res, next)
-// Nếu file error.middleware.js không export đúng thì dùng fallback dưới đây
-app.use(typeof errorHandler === "function" ? errorHandler : (err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({ success: false, message: err.message || "Internal Server Error" });
-});
+app.use(
+  typeof errorHandler === "function"
+    ? errorHandler
+    : (err, req, res, next) => {
+        console.error(err.stack);
+        res
+          .status(err.status || 500)
+          .json({
+            success: false,
+            message: err.message || "Internal Server Error",
+          });
+      },
+);
 
 const PORT = process.env.PORT;
 const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI; // ✅ đọc từ .env
@@ -66,7 +74,7 @@ mongoose
 function startServer() {
   const server = app.listen(PORT, () => {
     console.log(
-      `Product Service running on port ${PORT} | Environment: ${process.env.NODE_ENV || "development"}`
+      `Product Service running on port ${PORT} | Environment: ${process.env.NODE_ENV || "development"}`,
     );
   });
 

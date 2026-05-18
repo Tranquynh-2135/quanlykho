@@ -1,4 +1,6 @@
+// src/components/Sidebar.js
 import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import {
   FaHome,
   FaBox,
@@ -6,25 +8,73 @@ import {
   FaTruck,
   FaSignInAlt,
   FaSignOutAlt,
-  FaChartBar,
   FaTags,
   FaUsers,
 } from "react-icons/fa";
 import "./Sidebar.css";
 
-const menu = [
-  { to: "/", icon: <FaHome />, label: "Dashboard" },
-  { to: "/products", icon: <FaBox />, label: "Quản lý Sản phẩm" },
-  { to: "/suppliers", icon: <FaTruck />, label: "Nhà cung cấp" },
-  { to: "/warehouses", icon: <FaWarehouse />, label: "Quản lý Kho" },
-  { to: "/import", icon: <FaSignInAlt />, label: "Nhập kho" },
-  { to: "/export", icon: <FaSignOutAlt />, label: "Xuất kho" },
-  { to: "/categories", icon: <FaTags />, label: "Quản lý Danh mục" },
-  { to: "/users", icon: <FaUsers />, label: "Người dùng" },
-];
-
 const Sidebar = () => {
   const location = useLocation();
+  const { user } = useAuth();
+
+  const menu = [
+    {
+      to: "/",
+      icon: <FaHome />,
+      label: "Dashboard",
+      roles: ["chu_kho", "quan_ly_kho"],
+    },
+    {
+      to: "/products",
+      icon: <FaBox />,
+      label: "Quản lý Sản phẩm",
+      roles: ["chu_kho"],
+    },
+    {
+      to: "/inventory",
+      icon: <FaWarehouse />,
+      label: "Tồn kho",
+      roles: ["chu_kho", "quan_ly_kho"],
+    },
+    {
+      to: "/suppliers",
+      icon: <FaTruck />,
+      label: "Nhà cung cấp",
+      roles: ["chu_kho"],
+    },
+    {
+      to: "/warehouses",
+      icon: <FaWarehouse />,
+      label: "Quản lý Kho",
+      roles: ["chu_kho"],
+    },
+    {
+      to: "/import",
+      icon: <FaSignInAlt />,
+      label: "Nhập kho",
+      roles: ["chu_kho", "quan_ly_kho"],
+    },
+    {
+      to: "/export",
+      icon: <FaSignOutAlt />,
+      label: "Xuất kho",
+      roles: ["chu_kho", "quan_ly_kho"],
+    },
+    {
+      to: "/categories",
+      icon: <FaTags />,
+      label: "Quản lý Danh mục",
+      roles: ["chu_kho"],
+    },
+    {
+      to: "/users",
+      icon: <FaUsers />,
+      label: "Người dùng",
+      roles: ["chu_kho"],
+    },
+  ];
+
+  const filteredMenu = menu.filter((item) => item.roles.includes(user?.role));
 
   return (
     <div className="sidebar">
@@ -36,7 +86,7 @@ const Sidebar = () => {
 
       {/* Menu */}
       <nav className="sidebar-nav">
-        {menu.map((item) => (
+        {filteredMenu.map((item) => (
           <Link
             key={item.to}
             to={item.to}

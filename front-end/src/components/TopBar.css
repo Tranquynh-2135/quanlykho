@@ -1,0 +1,57 @@
+.topbar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 68px;
+  height: 64px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 24px;
+  z-index: 90;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.user-info {
+  text-align: right;
+}
+
+.user-name {
+  font-weight: 600;
+  color: #1a202c;
+  font-size: 15px;
+  display: block;
+}
+
+.user-role {
+  font-size: 14px;
+  color: #3b6ef8;
+  font-weight: 500;
+  display: block;
+  margin-top: 2px;
+}
+
+.logout-btn {
+  padding: 8px 16px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.logout-btn:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}

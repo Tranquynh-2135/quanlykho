@@ -7,6 +7,10 @@ const exportSchema = new mongoose.Schema(
       unique: true,
       default: () => `EXP-${Date.now()}`,
     },
+    warehouseId: {
+      type: String,
+      required: true,
+    },
     recipient: { type: String, required: true },
     recipientType: {
       type: String,
@@ -18,6 +22,7 @@ const exportSchema = new mongoose.Schema(
         productCode: { type: String, required: true },
         quantity: { type: Number, required: true, min: 1 },
         unitPrice: { type: Number, required: true, min: 0 },
+        unit: { type: String, default: "" },
         totalPrice: { type: Number },
       },
     ],

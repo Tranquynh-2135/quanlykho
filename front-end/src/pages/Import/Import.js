@@ -4,6 +4,7 @@ import { importApi } from "../../services/importApi";
 import { supplierApi } from "../../services/supplierApi";
 import { warehouseApi } from "../../services/warehouseApi";
 import { productApi } from "../../services/productApi";
+import { useAuth } from "../../context/AuthContext";
 import "./Import.css";
 
 const Import = () => {
@@ -16,14 +17,20 @@ const Import = () => {
   const [loading, setLoading] = useState(true);
   const [detailTarget, setDetailTarget] = useState(null);
 
+  const [exportStartDate, setExportStartDate] = useState("");
+  const [exportEndDate, setExportEndDate] = useState("");
+  const [exportSupplierId, setExportSupplierId] = useState("");
+  const [exportWarehouseId, setExportWarehouseId] = useState("");
+  const [exportProductCode, setExportProductCode] = useState("");
+
   const [showSupplierModal, setShowSupplierModal] = useState(false);
   const [showWarehouseModal, setShowWarehouseModal] = useState(false);
   const [newSupplierName, setNewSupplierName] = useState("");
   const [newWarehouseName, setNewWarehouseName] = useState("");
 
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("");
-
   const [totalAmount, setTotalAmount] = useState(0);
+  const { user } = useAuth();
 
   const [formData, setFormData] = useState({
     supplierId: "",
@@ -34,13 +41,13 @@ const Import = () => {
         productCode: "",
         quantity: 1,
         unitPrice: 0,
+        manufacturingDate: "",
         expiryDate: "",
         unit: "",
       },
     ],
   });
 
-  // Load dữ liệu
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -67,7 +74,13 @@ const Import = () => {
     loadData();
   }, []);
 
-  // Tính tổng tiền
+  // Tự động điền kho cho Quản lý kho
+  useEffect(() => {
+    if (user?.role === "quan_ly_kho" && user.warehouseId) {
+      setFormData((prev) => ({ ...prev, warehouseId: user.warehouseId }));
+    }
+  }, [user]);
+
   useEffect(() => {
     const sum = formData.items.reduce(
       (acc, item) => acc + Number(item.quantity) * Number(item.unitPrice),
@@ -76,7 +89,27 @@ const Import = () => {
     setTotalAmount(sum);
   }, [formData.items]);
 
-  // Lọc lịch sử
+  const warehouseOptions = useMemo(() => {
+    if (user?.role === "quan_ly_kho" && user.warehouseId) {
+      const myWarehouse = warehouses.find((w) => w._id === user.warehouseId);
+      return myWarehouse
+        ? [{ value: myWarehouse._id, label: myWarehouse.name }]
+        : [];
+    }
+    return warehouses.map((w) => ({
+      value: w._id,
+      label: w.name,
+    }));
+  }, [warehouses, user]);
+
+  useEffect(() => {
+    const sum = formData.items.reduce(
+      (acc, item) => acc + Number(item.quantity) * Number(item.unitPrice),
+      0,
+    );
+    setTotalAmount(sum);
+  }, [formData.items]);
+
   const filteredImports = React.useMemo(() => {
     if (!search.trim()) return imports;
     const keyword = search.toLowerCase().trim();
@@ -100,7 +133,6 @@ const Import = () => {
     });
   }, [imports, suppliers, warehouses, search]);
 
-  // Filter theo danh mục
   const filteredProducts = useMemo(() => {
     if (!selectedCategoryFilter) return products;
     return products.filter((p) => {
@@ -109,7 +141,27 @@ const Import = () => {
     });
   }, [products, selectedCategoryFilter]);
 
-  // Product Options
+  const allProductOptions = useMemo(() => {
+    return products.map((p) => ({
+      value: p.code,
+      label: `${p.code} — ${p.name}`,
+    }));
+  }, [products]);
+
+  const supplierFilterOptions = useMemo(() => {
+    return [
+      { value: "", label: "Tất cả nhà cung cấp" },
+      ...suppliers.map((s) => ({ value: s._id, label: s.name })),
+    ];
+  }, [suppliers]);
+
+  const warehouseFilterOptions = useMemo(() => {
+    return [
+      { value: "", label: "Tất cả các kho" },
+      ...warehouses.map((w) => ({ value: w._id, label: w.name })),
+    ];
+  }, [warehouses]);
+
   const productOptions = useMemo(() => {
     const groups = categories
       .map((cat) => {
@@ -173,6 +225,7 @@ const Import = () => {
           productCode: "",
           quantity: 1,
           unitPrice: 0,
+          manufacturingDate: "",
           expiryDate: "",
           unit: "",
         },
@@ -205,9 +258,13 @@ const Import = () => {
           quantity: Number(item.quantity),
           unitPrice: Number(item.unitPrice),
           unit: item.unit?.trim() || "",
+          manufacturingDate: item.manufacturingDate || undefined,
           expiryDate: item.expiryDate || undefined,
+          warehouseId: formData.warehouseId,
         })),
       };
+
+      console.log("📤 Payload gửi đi:", JSON.stringify(payload, null, 2));
 
       const res = await importApi.create(payload);
       if (res.data.success) {
@@ -223,6 +280,7 @@ const Import = () => {
               productCode: "",
               quantity: 1,
               unitPrice: 0,
+              manufacturingDate: "",
               expiryDate: "",
               unit: "",
             },
@@ -292,15 +350,547 @@ const Import = () => {
     }
   };
 
+  // ============================================================
+  // HÀM IN PHIẾU NHẬP KHO - PHIÊN BẢN CHUYÊN NGHIỆP
+  // ============================================================
+  const handlePrint = (imp) => {
+    const printWindow = window.open("", "_blank", "width=900,height=700");
+
+    const supplier = suppliers.find((s) => s._id === imp.supplierId);
+    const warehouse = warehouses.find((w) => w._id === imp.warehouseId);
+    const importDate = new Date(imp.importDate);
+
+    // Tính tổng số lượng tất cả mặt hàng
+    const totalQty =
+      imp.items?.reduce((sum, item) => sum + Number(item.quantity || 0), 0) ||
+      0;
+
+    // Hàm đọc số thành chữ (đơn giản cho VND)
+    const numberToWords = (num) => {
+      if (!num || num === 0) return "Không đồng";
+      const units = [
+        "",
+        "một",
+        "hai",
+        "ba",
+        "bốn",
+        "năm",
+        "sáu",
+        "bảy",
+        "tám",
+        "chín",
+      ];
+      const teens = [
+        "mười",
+        "mười một",
+        "mười hai",
+        "mười ba",
+        "mười bốn",
+        "mười lăm",
+        "mười sáu",
+        "mười bảy",
+        "mười tám",
+        "mười chín",
+      ];
+      const tens = [
+        "",
+        "",
+        "hai mươi",
+        "ba mươi",
+        "bốn mươi",
+        "năm mươi",
+        "sáu mươi",
+        "bảy mươi",
+        "tám mươi",
+        "chín mươi",
+      ];
+
+      const readGroup = (n) => {
+        if (n === 0) return "";
+        if (n < 10) return units[n];
+        if (n < 20) return teens[n - 10];
+        if (n < 100) {
+          const t = Math.floor(n / 10);
+          const u = n % 10;
+          return tens[t] + (u !== 0 ? " " + units[u] : "");
+        }
+        const h = Math.floor(n / 100);
+        const rest = n % 100;
+        let result = units[h] + " trăm";
+        if (rest > 0) {
+          if (rest < 10) result += " lẻ " + units[rest];
+          else result += " " + readGroup(rest);
+        }
+        return result;
+      };
+
+      const billion = Math.floor(num / 1_000_000_000);
+      const million = Math.floor((num % 1_000_000_000) / 1_000_000);
+      const thousand = Math.floor((num % 1_000_000) / 1_000);
+      const remainder = num % 1_000;
+
+      let result = "";
+      if (billion > 0) result += readGroup(billion) + " tỷ ";
+      if (million > 0) result += readGroup(million) + " triệu ";
+      if (thousand > 0) result += readGroup(thousand) + " nghìn ";
+      if (remainder > 0) result += readGroup(remainder);
+
+      return result.trim().replace(/^\w/, (c) => c.toUpperCase()) + " đồng";
+    };
+
+    const itemsHtml = (imp.items || [])
+      .map((item, i) => {
+        const prod = products.find((p) => p.code === item.productCode);
+        const catName = prod?.categoryId?.name || "—";
+        const lineTotal =
+          Number(item.quantity || 0) * Number(item.unitPrice || 0);
+
+        const expiryStr = item.expiryDate
+          ? new Date(item.expiryDate).toLocaleDateString("vi-VN")
+          : "—";
+        const mfgStr = item.manufacturingDate
+          ? new Date(item.manufacturingDate).toLocaleDateString("vi-VN")
+          : "—";
+
+        return `
+        <tr>
+          <td class="center">${i + 1}</td>
+          <td class="code">${item.productCode || "—"}</td>
+          <td>${prod?.name || item.productCode || "—"}</td>
+          <td class="center">${catName}</td>
+          <td class="center">${Number(item.quantity).toLocaleString("vi-VN")}</td>
+          <td class="center">${item.unit || "—"}</td>
+          <td class="right">${Number(item.unitPrice).toLocaleString("vi-VN")}</td>
+          <td class="center">${mfgStr}</td>
+          <td class="center">${expiryStr}</td>
+          <td class="right bold">${lineTotal.toLocaleString("vi-VN")}</td>
+        </tr>`;
+      })
+      .join("");
+
+    const amountInWords = numberToWords(imp.totalAmount || 0);
+
+    printWindow.document.write(`<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Phiếu nhập kho - ${imp.code}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: "Times New Roman", Times, serif;
+      font-size: 13px;
+      color: #111;
+      background: #fff;
+      padding: 20px 30px;
+    }
+
+    /* Header công ty */
+    .company-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 6px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #111;
+    }
+    .company-left { flex: 1; }
+    .company-name {
+      font-size: 13px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .company-info {
+      font-size: 11px;
+      color: #444;
+      margin-top: 3px;
+      line-height: 1.6;
+    }
+    .form-code {
+      text-align: right;
+      font-size: 11px;
+      color: #444;
+    }
+    .form-code strong { display: block; font-size: 12px; }
+
+    /* Tiêu đề phiếu */
+    .doc-title {
+      text-align: center;
+      margin: 14px 0 4px;
+    }
+    .doc-title h1 {
+      font-size: 20px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .doc-title .doc-code {
+      font-size: 13px;
+      margin-top: 4px;
+      color: #333;
+    }
+    .doc-title .doc-date {
+      font-size: 12px;
+      color: #555;
+      margin-top: 2px;
+      font-style: italic;
+    }
+
+    /* Thông tin phiếu */
+    .info-section {
+      margin: 14px 0 12px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 24px;
+    }
+    .info-row {
+      display: flex;
+      gap: 6px;
+      font-size: 12.5px;
+      padding: 2px 0;
+      border-bottom: 1px dotted #ccc;
+    }
+    .info-row.full-width {
+      grid-column: 1 / -1;
+    }
+    .info-label {
+      font-weight: bold;
+      white-space: nowrap;
+      min-width: 130px;
+    }
+    .info-value { color: #222; flex: 1; }
+
+    /* Bảng hàng hoá */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 8px;
+      font-size: 12px;
+    }
+    th {
+      background: #f0f0f0;
+      border: 1px solid #555;
+      padding: 6px 5px;
+      text-align: center;
+      font-size: 11.5px;
+      font-weight: bold;
+      line-height: 1.3;
+    }
+    td {
+      border: 1px solid #888;
+      padding: 5px 5px;
+      vertical-align: middle;
+      line-height: 1.4;
+    }
+    td.center { text-align: center; }
+    td.right { text-align: right; }
+    td.bold { font-weight: bold; }
+    td.code { font-family: "Courier New", monospace; font-size: 11px; color: #1a3db8; }
+
+    /* Tổng cộng */
+    .total-section {
+      margin-top: 8px;
+      border-top: 2px solid #333;
+      padding-top: 8px;
+    }
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13.5px;
+      font-weight: bold;
+    }
+    .total-amount {
+      font-size: 16px;
+      color: #1a3db8;
+    }
+    .amount-in-words {
+      font-size: 12px;
+      font-style: italic;
+      color: #333;
+      margin-top: 4px;
+    }
+    .amount-in-words span { font-weight: bold; font-style: normal; }
+
+    /* Ghi chú */
+    .notes-section {
+      margin-top: 8px;
+      font-size: 12px;
+      font-style: italic;
+      color: #444;
+      padding: 6px 10px;
+      border-left: 3px solid #888;
+      background: #fafafa;
+    }
+
+    /* Khu vực ký tên */
+    .signature-section {
+      margin-top: 24px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      text-align: center;
+      font-size: 12px;
+    }
+    .sig-box .sig-title {
+      font-weight: bold;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .sig-box .sig-note {
+      font-size: 11px;
+      color: #555;
+      font-style: italic;
+      margin-top: 2px;
+    }
+    .sig-box .sig-space {
+      height: 70px;
+      border-bottom: 1px solid #aaa;
+      margin: 6px 8px 4px;
+    }
+    .sig-box .sig-name {
+      font-size: 11px;
+      color: #666;
+    }
+
+    /* Footer */
+    .print-footer {
+      margin-top: 16px;
+      padding-top: 8px;
+      border-top: 1px solid #ddd;
+      font-size: 10px;
+      color: #999;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    @media print {
+      @page {
+        size: A4;
+        margin: 1.2cm 1.5cm;
+      }
+      body { padding: 0; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header công ty -->
+  <div class="company-header">
+    <div class="company-left">
+      <div class="company-name">Công ty / Cửa hàng</div>
+      <div class="company-info">
+        Địa chỉ: ......................................................<br/>
+        Điện thoại: ........................... | MST: ...........................
+      </div>
+    </div>
+    <div class="form-code">
+      <strong>Mẫu số: 01-VT</strong>
+      (Ban hành theo TT 200/2014/TT-BTC)
+    </div>
+  </div>
+
+  <!-- Tiêu đề phiếu -->
+  <div class="doc-title">
+    <h1>Phiếu nhập kho</h1>
+    <div class="doc-code">Số: <strong>${imp.code}</strong></div>
+    <div class="doc-date">
+      Ngày ${importDate.getDate()} tháng ${importDate.getMonth() + 1} năm ${importDate.getFullYear()}
+    </div>
+  </div>
+
+  <!-- Thông tin -->
+  <div class="info-section">
+    <div class="info-row">
+      <span class="info-label">Nhà cung cấp:</span>
+      <span class="info-value"><strong>${supplier?.name || "—"}</strong></span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Kho nhập:</span>
+      <span class="info-value"><strong>${warehouse?.name || "—"}</strong></span>
+    </div>
+
+    <div class="info-row">
+      <span class="info-label">Địa chỉ NCC:</span>
+      <span class="info-value">${supplier?.address || "............................................"}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Địa chỉ kho:</span>
+      <span class="info-value">${warehouse?.address || "............................................"}</span>
+    </div>
+
+    <div class="info-row">
+      <span class="info-label">Điện thoại NCC:</span>
+      <span class="info-value">${supplier?.phone || "............................................"}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Người nhận hàng:</span>
+      <span class="info-value">............................................</span>
+    </div>
+
+    <div class="info-row full-width">
+      <span class="info-label">Theo chứng từ số:</span>
+      <span class="info-value">...........  ngày ...... tháng ...... năm ............</span>
+    </div>
+  </div>
+
+  <!-- Bảng hàng hoá -->
+  <table>
+    <thead>
+      <tr>
+        <th rowspan="2" style="width:28px">STT</th>
+        <th rowspan="2" style="min-width:75px">Mã hàng</th>
+        <th rowspan="2">Tên hàng hoá, vật tư</th>
+        <th rowspan="2" style="min-width:80px">Danh mục</th>
+        <th rowspan="2" style="min-width:80px">Số lượng</th>
+        <th rowspan="2" style="min-width:70px">Đơn vị tính</th>
+        <th rowspan="2" style="min-width:90px">Đơn giá (₫)</th>
+        <th rowspan="2" style="min-width:80px">NSX</th>
+        <th rowspan="2" style="min-width:80px">HSD</th>
+        <th rowspan="2" style="min-width:95px">Thành tiền (₫)</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${itemsHtml}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="4" class="right bold" style="font-size:12.5px; padding: 7px 6px;">
+          Cộng
+        </td>
+        <td class="center bold">${totalQty.toLocaleString("vi-VN")}</td>
+        <td class="center bold"></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td class="right bold" style="font-size:13px; color:#1a3db8;">
+          ${(imp.totalAmount || 0).toLocaleString("vi-VN")}
+        </td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <!-- Tổng tiền -->
+  <div class="total-section">
+    <div class="total-row">
+      <span>Tổng số tiền (bằng số):</span>
+      <span class="total-amount">${(imp.totalAmount || 0).toLocaleString("vi-VN")} ₫</span>
+    </div>
+    <div class="amount-in-words">
+      Số tiền bằng chữ: <span>${amountInWords}</span>
+    </div>
+  </div>
+
+  ${
+    imp.notes
+      ? `
+  <div class="notes-section">
+    <strong>Ghi chú:</strong> ${imp.notes}
+  </div>`
+      : ""
+  }
+
+  <!-- Chữ ký -->
+  <div class="signature-section">
+    <div class="sig-box">
+      <div class="sig-title">Người lập phiếu</div>
+      <div class="sig-note">(Ký, ghi rõ họ tên)</div>
+      <div class="sig-space"></div>
+      <div class="sig-name">..............................</div>
+    </div>
+    <div class="sig-box">
+      <div class="sig-title">Người giao hàng</div>
+      <div class="sig-note">(Ký, ghi rõ họ tên)</div>
+      <div class="sig-space"></div>
+      <div class="sig-name">..............................</div>
+    </div>
+    <div class="sig-box">
+      <div class="sig-title">Thủ kho</div>
+      <div class="sig-note">(Ký, ghi rõ họ tên)</div>
+      <div class="sig-space"></div>
+      <div class="sig-name">..............................</div>
+    </div>
+    <div class="sig-box">
+      <div class="sig-title">Kế toán trưởng</div>
+      <div class="sig-note">(Ký, ghi rõ họ tên)</div>
+      <div class="sig-space"></div>
+      <div class="sig-name">..............................</div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="print-footer">
+    <span>In lúc: ${new Date().toLocaleString("vi-VN")}</span>
+    <span>Phiếu nhập kho số: ${imp.code} | ${totalQty} mặt hàng | ${(imp.items || []).length} dòng</span>
+  </div>
+
+  <script>
+    window.onload = function () {
+      window.print();
+    };
+  </script>
+</body>
+</html>`);
+
+    printWindow.document.close();
+  };
+
+  const handleExportExcel = () => {
+    const params = {
+      startDate: exportStartDate,
+      endDate: exportEndDate,
+      supplierId: exportSupplierId,
+      warehouseId: exportWarehouseId,
+      productCode: exportProductCode,
+    };
+    window.open(importApi.getExportUrl(params), "_blank");
+  };
+
   const supplierOptions = suppliers.map((s) => ({
     value: s._id,
     label: `${s.name}${s.phone ? ` (${s.phone})` : ""}`,
   }));
 
-  const warehouseOptions = warehouses.map((w) => ({
-    value: w._id,
-    label: w.name,
-  }));
+  // ==================== TRONG FORM ====================
+  <div className="im-form-group">
+    <label>
+      Kho <span className="required">*</span>
+    </label>
+    <div className="select-with-add">
+      <Select
+        options={warehouseOptions}
+        value={
+          warehouseOptions.find((o) => o.value === formData.warehouseId) || null
+        }
+        onChange={(sel) =>
+          setFormData((p) => ({
+            ...p,
+            warehouseId: sel?.value || "",
+          }))
+        }
+        placeholder="Chọn kho..."
+        isSearchable
+        className="react-select-container"
+        classNamePrefix="react-select"
+        isDisabled={user?.role === "quan_ly_kho"} // Khóa dropdown
+      />
+
+      {/* Chỉ Chủ kho mới thấy nút + */}
+      {user?.role === "chu_kho" && (
+        <button
+          type="button"
+          className="btn-add-inline"
+          onClick={() => setShowWarehouseModal(true)}
+        >
+          +
+        </button>
+      )}
+    </div>
+  </div>;
 
   if (loading) return <div className="loading">Đang tải dữ liệu...</div>;
 
@@ -320,6 +910,7 @@ const Import = () => {
         <h2>Tạo phiếu nhập kho mới</h2>
         <form onSubmit={handleSubmit}>
           <div className="im-form-row">
+            {/* Nhà cung cấp */}
             <div className="im-form-group">
               <label>
                 Nhà cung cấp <span className="required">*</span>
@@ -350,6 +941,7 @@ const Import = () => {
               </div>
             </div>
 
+            {/* ==================== KHO - ĐÃ SỬA HOÀN CHỈNH ==================== */}
             <div className="im-form-group">
               <label>
                 Kho <span className="required">*</span>
@@ -368,18 +960,22 @@ const Import = () => {
                       warehouseId: sel?.value || "",
                     }))
                   }
-                  placeholder="Tìm kho..."
+                  placeholder="Chọn kho..."
                   isSearchable
                   className="react-select-container"
                   classNamePrefix="react-select"
                 />
-                <button
-                  type="button"
-                  className="btn-add-inline"
-                  onClick={() => setShowWarehouseModal(true)}
-                >
-                  +
-                </button>
+
+                {/* Chỉ Chủ kho mới thấy nút + */}
+                {user?.role === "chu_kho" && (
+                  <button
+                    type="button"
+                    className="btn-add-inline"
+                    onClick={() => setShowWarehouseModal(true)}
+                  >
+                    +
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -416,6 +1012,7 @@ const Import = () => {
                     <th style={{ minWidth: 100 }}>Số lượng</th>
                     <th style={{ minWidth: 130 }}>Đơn vị tính</th>
                     <th style={{ minWidth: 140 }}>Giá vốn (₫)</th>
+                    <th style={{ minWidth: 150 }}>NSX</th>
                     <th style={{ minWidth: 130 }}>HSD</th>
                     <th style={{ minWidth: 130 }}>Thành tiền</th>
                     <th style={{ minWidth: 60 }}></th>
@@ -500,12 +1097,31 @@ const Import = () => {
                             required
                           />
                         </td>
-                        <td className="date-cell">
-                          {item.expiryDate
-                            ? new Date(item.expiryDate).toLocaleDateString(
-                                "vi-VN",
+                        <td>
+                          <input
+                            type="date"
+                            value={item.manufacturingDate || ""}
+                            onChange={(e) =>
+                              handleItemChange(
+                                index,
+                                "manufacturingDate",
+                                e.target.value,
                               )
-                            : "—"}
+                            }
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="date"
+                            value={item.expiryDate || ""}
+                            onChange={(e) =>
+                              handleItemChange(
+                                index,
+                                "expiryDate",
+                                e.target.value,
+                              )
+                            }
+                          />
                         </td>
                         <td className="total-cell">
                           {(
@@ -529,7 +1145,6 @@ const Import = () => {
                 </tbody>
               </table>
             </div>
-
             <button type="button" className="btn-add" onClick={addItemRow}>
               + Thêm sản phẩm
             </button>
@@ -562,10 +1177,152 @@ const Import = () => {
 
       {/* Lịch sử phiếu nhập */}
       <div className="im-history">
-        <h2>Lịch sử phiếu nhập kho</h2>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "16px",
+          }}
+        >
+          <h2 style={{ margin: 0 }}>Lịch sử phiếu nhập kho</h2>
+          <button
+            className="im-btn-detail"
+            onClick={handleExportExcel}
+            style={{
+              padding: "8px 16px",
+              background: "#15803d",
+              color: "#fff",
+              border: "none",
+              fontWeight: "600",
+            }}
+          >
+            📊 Xuất Excel báo cáo
+          </button>
+        </div>
+
+        <div
+          className="im-export-filters"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+            gap: "12px",
+            marginBottom: "16px",
+            background: "#fff",
+            padding: "16px",
+            borderRadius: "12px",
+            border: "1.5px solid #e2e8f0",
+          }}
+        >
+          <div className="im-form-group">
+            <label style={{ fontSize: "12px" }}>Từ ngày</label>
+            <input
+              type="date"
+              value={exportStartDate}
+              onChange={(e) => setExportStartDate(e.target.value)}
+            />
+          </div>
+          <div className="im-form-group">
+            <label style={{ fontSize: "12px" }}>Đến ngày</label>
+            <input
+              type="date"
+              value={exportEndDate}
+              onChange={(e) => setExportEndDate(e.target.value)}
+            />
+          </div>
+          <div className="im-form-group">
+            <label style={{ fontSize: "12px" }}>Nhà cung cấp</label>
+            <Select
+              options={supplierFilterOptions}
+              value={
+                supplierFilterOptions.find(
+                  (o) => o.value === exportSupplierId,
+                ) || supplierFilterOptions[0]
+              }
+              onChange={(sel) => setExportSupplierId(sel?.value || "")}
+              placeholder="Chọn NCC..."
+              isSearchable
+              className="react-select-container"
+              classNamePrefix="react-select"
+              styles={{
+                control: (base) => ({
+                  ...base,
+                  minHeight: "38px",
+                  borderRadius: "8px",
+                }),
+              }}
+            />
+          </div>
+          <div className="im-form-group">
+            <label style={{ fontSize: "12px" }}>Kho nhập</label>
+            <Select
+              options={warehouseFilterOptions}
+              value={
+                warehouseFilterOptions.find(
+                  (o) => o.value === exportWarehouseId,
+                ) || warehouseFilterOptions[0]
+              }
+              onChange={(sel) => setExportWarehouseId(sel?.value || "")}
+              placeholder="Chọn kho..."
+              isSearchable
+              className="react-select-container"
+              classNamePrefix="react-select"
+              styles={{
+                control: (base) => ({
+                  ...base,
+                  minHeight: "38px",
+                  borderRadius: "8px",
+                }),
+              }}
+            />
+          </div>
+          <div className="im-form-group">
+            <label style={{ fontSize: "12px" }}>Mã sản phẩm</label>
+            <Select
+              options={[
+                { value: "", label: "Tất cả sản phẩm" },
+                ...allProductOptions,
+              ]}
+              value={
+                exportProductCode
+                  ? allProductOptions.find((o) => o.value === exportProductCode)
+                  : { value: "", label: "Tất cả sản phẩm" }
+              }
+              onChange={(sel) => setExportProductCode(sel?.value || "")}
+              placeholder="Chọn sản phẩm..."
+              isSearchable
+              className="react-select-container"
+              classNamePrefix="react-select"
+              styles={{
+                control: (base) => ({
+                  ...base,
+                  minHeight: "38px",
+                  borderRadius: "8px",
+                }),
+              }}
+            />
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-end" }}>
+            <button
+              type="button"
+              className="btn-remove"
+              style={{ width: "100%", height: "38px" }}
+              onClick={() => {
+                setExportStartDate("");
+                setExportEndDate("");
+                setExportSupplierId("");
+                setExportWarehouseId("");
+                setExportProductCode("");
+              }}
+            >
+              Xóa lọc
+            </button>
+          </div>
+        </div>
+
         <input
           className="im-search"
-          placeholder="Tìm theo mã phiếu, ngày nhập, nhà cung cấp, kho..."
+          placeholder="Tìm nhanh trong danh sách phiếu hiển thị bên dưới..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -647,13 +1404,26 @@ const Import = () => {
         </table>
       </div>
 
-      {/* Modal chi tiết phiếu - HIỂN THỊ ĐƠN VỊ TÍNH */}
+      {/* Modal chi tiết phiếu */}
       {detailTarget && (
         <div className="modal-overlay" onClick={() => setDetailTarget(null)}>
           <div className="modal-detail" onClick={(e) => e.stopPropagation()}>
             <div className="modal-detail-header">
               <h3>📋 Chi tiết phiếu {detailTarget.code}</h3>
-              <button onClick={() => setDetailTarget(null)}>✕</button>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button
+                  className="im-btn-detail"
+                  onClick={() => handlePrint(detailTarget)}
+                  style={{
+                    background: "#3b6ef8",
+                    color: "#fff",
+                    border: "none",
+                  }}
+                >
+                  🖨️ In phiếu
+                </button>
+                <button onClick={() => setDetailTarget(null)}>✕</button>
+              </div>
             </div>
 
             <div className="modal-detail-info">
@@ -708,7 +1478,6 @@ const Import = () => {
                     (p) => p.code === item.productCode,
                   );
                   const categoryName = prod?.categoryId?.name || "—";
-
                   return (
                     <tr key={i}>
                       <td style={{ color: "#94a3b8" }}>{i + 1}</td>
@@ -769,7 +1538,7 @@ const Import = () => {
         </div>
       )}
 
-      {/* Modal thêm NCC & Kho */}
+      {/* Modal thêm NCC */}
       {showSupplierModal && (
         <div
           className="modal-overlay"
@@ -791,6 +1560,7 @@ const Import = () => {
         </div>
       )}
 
+      {/* Modal thêm kho */}
       {showWarehouseModal && (
         <div
           className="modal-overlay"

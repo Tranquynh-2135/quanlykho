@@ -2,6 +2,7 @@ require("dotenv").config();
 const express   = require("express");
 const mongoose  = require("mongoose");
 const cors      = require("cors");
+const errorHandler = require("./middlewares/error.middleware");
 
 const app = express();
 app.use(cors());
@@ -9,11 +10,7 @@ app.use(express.json());
 
 app.get("/health", (req, res) => res.json({ status: "up", service: "warehouse-service" }));
 app.use("/warehouses", require("./routes/warehouse.routes"));
-app.use((err, req, res, next) => {
-  if (err.code === 11000)
-    return res.status(400).json({ success: false, message: "Tên kho đã tồn tại" });
-  res.status(err.statusCode || 500).json({ success: false, message: err.message });
-});
+app.use(errorHandler);
 
 const PORT      = process.env.PORT ;
 const MONGO_URI = process.env.MONGO_URI;
