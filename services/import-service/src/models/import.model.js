@@ -17,7 +17,7 @@ const importSchema = new mongoose.Schema(
         productCode: { type: String, required: true },
         quantity: { type: Number, required: true, min: 1 },
         unitPrice: { type: Number, required: true, min: 0 },
-        unit: { type: String, default: "" }, // ← Phải có dòng này
+        unit: { type: String, default: "" },
         totalPrice: { type: Number, default: 0 },
         manufacturingDate: { type: Date, default: null },
         expiryDate: { type: Date, default: null },

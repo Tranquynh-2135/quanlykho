@@ -21,10 +21,34 @@ const productSchema = new mongoose.Schema(
       min: 0,
       default: 0,
     },
+
+    // === TỒN KHO THEO TỪNG KHO (Multi-Warehouse) ===
+    stocks: [
+      {
+        warehouseId: {
+          type: String,
+          required: true,
+        },
+        quantity: {
+          type: Number,
+          default: 0,
+          min: 0,
+        },
+        minStock: {
+          type: Number,
+          default: 10,
+        },
+      },
+    ],
+
     stock: {
       type: Number,
       default: 0,
       min: 0,
+    },
+    warehouseId: {
+      type: String,
+      default: null,
     },
     minStock: {
       type: Number,
@@ -47,7 +71,6 @@ const productSchema = new mongoose.Schema(
 
     location: { type: String },
     supplierId: { type: String },
-    warehouseId: { type: String },
     imageHash: { type: String },
     description: { type: String },
 
@@ -58,7 +81,7 @@ const productSchema = new mongoose.Schema(
     },
     unit: {
       type: String,
-      default: null, // nếu null thì dùng defaultUnit của category
+      default: null,
     },
 
     status: {

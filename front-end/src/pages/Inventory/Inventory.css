@@ -1,0 +1,181 @@
+@import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap");
+
+.inv-root {
+  font-family: "Be Vietnam Pro", sans-serif;
+  background: #f4f6fb;
+  padding: 24px;
+  min-height: 100vh;
+  color: #1a202c;
+}
+
+/* Header */
+.inv-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.inv-title-block {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.inv-title-icon {
+  font-size: 32px;
+}
+.inv-title {
+  font-size: 24px;
+  font-weight: 700;
+}
+.inv-subtitle {
+  font-size: 14px;
+  color: #64748b;
+}
+
+/* Filters */
+.inv-filters {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.inv-search-wrap {
+  position: relative;
+  width: 320px;
+}
+
+.inv-search {
+  width: 100%;
+  padding: 10px 12px 10px 40px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.inv-search:focus {
+  outline: none;
+  border-color: #3b6ef8;
+}
+
+.inv-select {
+  padding: 10px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  min-width: 200px;
+}
+
+/* Stats Cards */
+.inv-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Product Grid */
+.inv-product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.inv-product-card {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+  transition: all 0.2s;
+}
+
+.inv-product-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.inv-card-header {
+  padding: 16px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.inv-product-name {
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.inv-code {
+  font-family: monospace;
+  font-size: 12px;
+  color: #3b6ef8;
+  background: #eef2ff;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.inv-stock-info {
+  padding: 16px;
+}
+
+.inv-stock-bar {
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 9999px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+.inv-stock-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.4s;
+}
+
+.inv-stock-fill.low {
+  background: #ef4444;
+}
+.inv-stock-fill.medium {
+  background: #f59e0b;
+}
+.inv-stock-fill.good {
+  background: #22c55e;
+}
+
+.inv-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-top: 6px;
+}
+
+.inv-label {
+  color: #64748b;
+}
+.inv-value {
+  font-weight: 600;
+}
+
+/* Expiry */
+.inv-expiry {
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  font-weight: 500;
+}

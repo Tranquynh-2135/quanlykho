@@ -4,8 +4,8 @@ const ExcelJS = require("exceljs");
 const axios = require("axios");
 
 const PRODUCT_SERVICE_URL = "http://localhost:4001";
-const SUPPLIER_SERVICE_URL = "http://localhost:4004"; 
-const WAREHOUSE_SERVICE_URL = "http://localhost:4005"; 
+const SUPPLIER_SERVICE_URL = "http://localhost:4004";
+const WAREHOUSE_SERVICE_URL = "http://localhost:4005";
 
 // ====================== GET ALL ======================
 const getAllImports = async (req, res, next) => {
@@ -13,10 +13,10 @@ const getAllImports = async (req, res, next) => {
     const { page = 1, limit = 20, supplierId, warehouseId, search } = req.query;
 
     const query = {};
-    
+
     if (supplierId) query.supplierId = supplierId;
     if (warehouseId) query.warehouseId = warehouseId;
-    
+
     if (search) {
       query.$or = [
         { code: { $regex: search, $options: "i" } },
@@ -41,7 +41,7 @@ const getAllImports = async (req, res, next) => {
   }
 };
 
-// ====================== CREATE IMPORT  ======================
+// ====================== CREATE IMPORT ======================
 const createImport = async (req, res, next) => {
   try {
     const { supplierId, warehouseId, items, notes } = req.body;
@@ -72,7 +72,6 @@ const createImport = async (req, res, next) => {
 
     let totalAmount = 0;
 
-    // Xử lý items - Đảm bảo unit được lưu rõ ràng
     const processedItems = items.map((item) => {
       const qty = Number(item.quantity);
       const price = Number(item.unitPrice);
@@ -83,10 +82,13 @@ const createImport = async (req, res, next) => {
         productCode: item.productCode,
         quantity: qty,
         unitPrice: price,
-        unit: (item.unit || "").toString().trim(), // ← Rất quan trọng
-        totalPrice: totalPrice,
-        manufacturingDate: (item.manufacturingDate && String(item.manufacturingDate).trim() !== "") ? new Date(item.manufacturingDate) : null,
-        expiryDate: (item.expiryDate && String(item.expiryDate).trim() !== "") ? new Date(item.expiryDate) : null,
+        unit: (item.unit || "").toString().trim(),
+        totalPrice,
+        manufacturingDate: item.manufacturingDate
+          ? new Date(item.manufacturingDate)
+          : null,
+        expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
+        warehouseId: warehouseId,
       };
     });
 
@@ -102,19 +104,26 @@ const createImport = async (req, res, next) => {
 
     const savedImport = await newImport.save();
 
-    // Tăng stock
+    // === TĂNG STOCK ===
     for (const item of processedItems) {
       try {
         await axios.patch(
           `${PRODUCT_SERVICE_URL}/products/increase-stock/${item.productCode}`,
-          { 
+          {
             quantity: item.quantity,
             manufacturingDate: item.manufacturingDate,
-            expiryDate: item.expiryDate 
+            expiryDate: item.expiryDate,
+            warehouseId: savedImport.warehouseId,
           },
         );
+        console.log(
+          `✅ Cập nhật stock thành công cho ${item.productCode} - Kho: ${savedImport.warehouseId}`,
+        );
       } catch (err) {
-        console.error(`Không tăng stock cho ${item.productCode}:`, err.message);
+        console.error(
+          `❌ Không tăng stock cho ${item.productCode}:`,
+          err.message,
+        );
       }
     }
 
@@ -168,7 +177,8 @@ const deleteImport = async (req, res, next) => {
 // ====================== EXPORT EXCEL ======================
 const exportExcel = async (req, res, next) => {
   try {
-    let { startDate, endDate, supplierId, warehouseId, productCode } = req.query;
+    let { startDate, endDate, supplierId, warehouseId, productCode } =
+      req.query;
 
     const query = {};
 
@@ -189,7 +199,11 @@ const exportExcel = async (req, res, next) => {
     }
 
     // Lọc theo kho - Đảm bảo lọc đúng ID
-    if (warehouseId && warehouseId !== "undefined" && warehouseId.trim() !== "") {
+    if (
+      warehouseId &&
+      warehouseId !== "undefined" &&
+      warehouseId.trim() !== ""
+    ) {
       query.warehouseId = warehouseId.trim();
     }
 
@@ -207,32 +221,62 @@ const exportExcel = async (req, res, next) => {
 
     try {
       const [supRes, whRes, prodRes, catRes] = await Promise.all([
-        axios.get(`${SUPPLIER_SERVICE_URL}/suppliers`).catch((err) => { console.error("Supplier service error (4004):", err.message); return { data: { data: [] } }; }),
-        axios.get(`${WAREHOUSE_SERVICE_URL}/warehouses`).catch((err) => { console.error("Warehouse service error:", err.message); return { data: { data: [] } }; }),
-        axios.get(`${PRODUCT_SERVICE_URL}/products`).catch((err) => { console.error("Product service error:", err.message); return { data: { data: [] } }; }),
-        axios.get(`${PRODUCT_SERVICE_URL}/products/categories`).catch((err) => { console.error("Category service error:", err.message); return { data: { data: [] } }; })
+        axios.get(`${SUPPLIER_SERVICE_URL}/suppliers`).catch((err) => {
+          console.error("Supplier service error (4004):", err.message);
+          return { data: { data: [] } };
+        }),
+        axios.get(`${WAREHOUSE_SERVICE_URL}/warehouses`).catch((err) => {
+          console.error("Warehouse service error:", err.message);
+          return { data: { data: [] } };
+        }),
+        axios.get(`${PRODUCT_SERVICE_URL}/products`).catch((err) => {
+          console.error("Product service error:", err.message);
+          return { data: { data: [] } };
+        }),
+        axios.get(`${PRODUCT_SERVICE_URL}/products/categories`).catch((err) => {
+          console.error("Category service error:", err.message);
+          return { data: { data: [] } };
+        }),
       ]);
-      
+
       const sups = supRes.data?.data || supRes.data || [];
       const whs = whRes.data?.data || whRes.data || [];
       const prods = prodRes.data?.data || prodRes.data || [];
       const cats = catRes.data?.data || catRes.data || [];
-      
-      // Xây dựng bản đồ ánh xạ (Mapping)
-      if (Array.isArray(sups)) sups.forEach(s => supplierMap[(s._id?.$oid || s._id || s.id)?.toString()] = s.name);
-      if (Array.isArray(whs)) whs.forEach(w => warehouseMap[(w._id?.$oid || w._id || w.id)?.toString()] = w.name);
-      if (Array.isArray(cats)) cats.forEach(c => categoryMap[(c._id?.$oid || c._id || c.id)?.toString()] = c.name);
-      if (Array.isArray(prods)) prods.forEach(p => {
-        const catId = (p.categoryId?._id?.$oid || p.categoryId?._id || p.categoryId)?.toString();
-        productMap[p.code] = { 
-          name: p.name, 
-          categoryName: categoryMap[catId] || "—",
-          unit: p.unit 
-        };
-      });
 
+      // Xây dựng bản đồ ánh xạ (Mapping)
+      if (Array.isArray(sups))
+        sups.forEach(
+          (s) =>
+            (supplierMap[(s._id?.$oid || s._id || s.id)?.toString()] = s.name),
+        );
+      if (Array.isArray(whs))
+        whs.forEach(
+          (w) =>
+            (warehouseMap[(w._id?.$oid || w._id || w.id)?.toString()] = w.name),
+        );
+      if (Array.isArray(cats))
+        cats.forEach(
+          (c) =>
+            (categoryMap[(c._id?.$oid || c._id || c.id)?.toString()] = c.name),
+        );
+      if (Array.isArray(prods))
+        prods.forEach((p) => {
+          const catId = (
+            p.categoryId?._id?.$oid ||
+            p.categoryId?._id ||
+            p.categoryId
+          )?.toString();
+          productMap[p.code] = {
+            name: p.name,
+            categoryName: categoryMap[catId] || "—",
+            unit: p.unit,
+          };
+        });
     } catch (err) {
-      console.error(`Lỗi khi lấy thông tin NCC/Kho từ service khác: ${err.message}. Đảm bảo các service đang chạy và trả về dữ liệu.`);
+      console.error(
+        `Lỗi khi lấy thông tin NCC/Kho từ service khác: ${err.message}. Đảm bảo các service đang chạy và trả về dữ liệu.`,
+      );
     }
 
     const workbook = new ExcelJS.Workbook();
@@ -259,7 +303,10 @@ const exportExcel = async (req, res, next) => {
 
     // Định dạng Header
     worksheet.getRow(1).font = { bold: true };
-    worksheet.getRow(1).alignment = { vertical: "middle", horizontal: "center" };
+    worksheet.getRow(1).alignment = {
+      vertical: "middle",
+      horizontal: "center",
+    };
     worksheet.getRow(1).fill = {
       type: "pattern",
       pattern: "solid",
@@ -273,8 +320,10 @@ const exportExcel = async (req, res, next) => {
         if (productCode && item.productCode !== productCode) return;
 
         // Lấy ID và chuyển sang chuỗi hex để so khớp với map tên
-        const sIdKey = (imp.supplierId?.$oid || imp.supplierId)?.toString() || "";
-        const wIdKey = (imp.warehouseId?.$oid || imp.warehouseId)?.toString() || "";
+        const sIdKey =
+          (imp.supplierId?.$oid || imp.supplierId)?.toString() || "";
+        const wIdKey =
+          (imp.warehouseId?.$oid || imp.warehouseId)?.toString() || "";
         const pInfo = productMap[item.productCode] || {};
 
         const row = worksheet.addRow({
