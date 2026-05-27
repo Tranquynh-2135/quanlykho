@@ -1,4 +1,5 @@
 const User = require("../models/user.model");
+const jwt = require("jsonwebtoken");
 
 // GET ALL
 const getAll = async (req, res, next) => {
@@ -13,9 +14,7 @@ const getAll = async (req, res, next) => {
         { email: { $regex: search.trim(), $options: "i" } },
         { phone: { $regex: search.trim(), $options: "i" } },
       ];
-    const users = await User.find(query)
-      // .select("-password") // KHÔNG trả về password
-      .sort({ createdAt: -1 });
+    const users = await User.find(query).sort({ createdAt: -1 });
     res.json({ success: true, data: users });
   } catch (err) {
     next(err);
@@ -41,8 +40,8 @@ const create = async (req, res, next) => {
   try {
     console.log("📥 Body nhận được:", req.body);
 
-    // Nếu là quản lý kho mà không có email → tạo email giả
-    if (req.body.role === "quan_ly_kho" && !req.body.email) {
+    // Nếu là Nhân viên kho mà không có email → tạo email giả
+    if (req.body.role === "nhan_vien_kho" && !req.body.email) {
       req.body.email = `${req.body.username || "user"}@kho.com`;
     }
 
@@ -60,7 +59,6 @@ const create = async (req, res, next) => {
   }
 };
 
-// UPDATE — không cho đổi password qua đây
 // UPDATE
 const update = async (req, res, next) => {
   try {
@@ -170,9 +168,16 @@ const login = async (req, res, next) => {
 
     const { password: hashed, plainPassword, ...userData } = user.toObject();
 
+    // Tạo JWT Token
+    const token = jwt.sign(
+      { _id: user._id, role: user.role, warehouseId: user.warehouseId },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }, // Token hết hạn sau 1 ngày
+    );
+
     res.json({
       success: true,
-      data: userData,
+      data: { ...userData, token }, // Trả về userData kèm theo token
       message: "Đăng nhập thành công",
     });
   } catch (err) {

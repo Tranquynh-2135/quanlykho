@@ -9,7 +9,7 @@ const {
 } = require("../controllers/export.controller");
 
 router.post("/", createExport);
-router.get("/export/excel", exportExcel); // Chuyển lên trên cùng của các route GET
+router.get("/export/excel", exportExcel);
 router.get("/", getAllExports);
 router.get("/:id", getExportById);
 router.delete("/:id", deleteExport);

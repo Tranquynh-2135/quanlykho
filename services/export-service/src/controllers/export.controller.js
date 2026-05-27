@@ -8,8 +8,24 @@ const WAREHOUSE_SERVICE_URL = "http://localhost:4005";
 // ====================== GET ALL ======================
 const getAllExports = async (req, res, next) => {
   try {
-    const exports = await Export.find().sort({ createdAt: -1 });
-    res.json({ success: true, data: exports });
+    const { page = 1, limit = 20 } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const [exports, total] = await Promise.all([
+      Export.find().sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
+      Export.countDocuments(),
+    ]);
+
+    res.json({
+      success: true,
+      data: exports,
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / Number(limit)),
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -66,6 +82,12 @@ const createExport = async (req, res, next) => {
       };
     });
 
+    // Chuẩn bị cấu hình axios để truyền Token sang product-service
+    const authHeader = req.headers.authorization;
+    const axiosConfig = authHeader
+      ? { headers: { Authorization: authHeader } }
+      : {};
+
     // --- TRỪ STOCK THEO KHO CỤ THỂ ---
     for (const item of processedItems) {
       const pCode = item.productCode;
@@ -82,7 +104,10 @@ const createExport = async (req, res, next) => {
         {
           quantity: -item.quantity,
           warehouseId: warehouseId,
+          manufacturingDate: item.manufacturingDate,
+          expiryDate: item.expiryDate,
         },
+        axiosConfig,
       );
 
       if (!resStock.data?.success) {

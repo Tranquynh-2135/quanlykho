@@ -5,11 +5,11 @@ import { warehouseApi } from "../../services/warehouseApi";
 import "./Users.css";
 
 const Users = () => {
-  const { isChuKho } = useAuth();
+  const { isQuanLyKho } = useAuth();
   const [activeTab, setActiveTab] = useState("users");
 
-  const [admins, setAdmins] = useState([]); // Chủ kho / Admin
-  const [managers, setManagers] = useState([]); // Quản lý kho
+  const [quanLyKhoUser, setQuanLyKhoUser] = useState(null); // CHỈ 1 tài khoản
+  const [nhanVienKhoUsers, setNhanVienKhoUsers] = useState([]); // Nhiều nhân viên
   const [warehouses, setWarehouses] = useState([]);
   const [warehousesNoManager, setWarehousesNoManager] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -41,15 +41,18 @@ const Users = () => {
 
       const allUsers = userRes.data.data || [];
 
-      setAdmins(allUsers.filter((u) => u.role === "chu_kho"));
-      setManagers(allUsers.filter((u) => u.role === "quan_ly_kho"));
+      // === CHỈ LẤY 1 TÀI KHOẢN QUẢN LÝ KHO (ưu tiên tài khoản đầu tiên) ===
+      const qlUsers = allUsers.filter((u) => u.role === "quan_ly_kho");
+      setQuanLyKhoUser(qlUsers.length > 0 ? qlUsers[0] : null);
+
+      setNhanVienKhoUsers(allUsers.filter((u) => u.role === "nhan_vien_kho"));
       setWarehouses(whRes.data.data || []);
 
-      // Kho chưa có quản lý
+      // Kho chưa có Nhân viên kho
       const noManager = whRes.data.data.filter(
         (wh) =>
           !allUsers.some(
-            (u) => u.role === "quan_ly_kho" && u.warehouseId === wh._id,
+            (u) => u.role === "nhan_vien_kho" && u.warehouseId === wh._id,
           ),
       );
       setWarehousesNoManager(noManager);
@@ -61,8 +64,8 @@ const Users = () => {
   }, []);
 
   useEffect(() => {
-    if (isChuKho()) fetchData();
-  }, [isChuKho, fetchData]);
+    if (isQuanLyKho()) fetchData();
+  }, [isQuanLyKho, fetchData]);
 
   const openAddManager = () => {
     setFormData({
@@ -111,21 +114,18 @@ const Users = () => {
         status: formData.status || "active",
       };
 
-      // Xử lý mật khẩu
       if (formData.password && formData.password.trim() !== "") {
         payload.password = formData.password.trim();
-        payload.plainPassword = formData.password.trim(); // quan trọng để hiển thị
+        payload.plainPassword = formData.password.trim();
       }
 
-      // Quan trọng: Giữ nguyên role của user đang sửa
       if (modalMode === "edit" && editingUser) {
-        payload.role = editingUser.role; // ← Giữ role Admin hoặc Quản lý
-        if (editingUser.role === "quan_ly_kho") {
+        payload.role = editingUser.role;
+        if (editingUser.role === "nhan_vien_kho") {
           payload.warehouseId = formData.warehouseId;
         }
       } else {
-        // Khi thêm mới (chỉ thêm Quản lý kho)
-        payload.role = "quan_ly_kho";
+        payload.role = "nhan_vien_kho";
         payload.warehouseId = formData.warehouseId;
       }
 
@@ -136,11 +136,10 @@ const Users = () => {
       }
 
       setShowModal(false);
-      fetchData(); // Reload lại danh sách
+      fetchData();
       alert(modalMode === "add" ? "Thêm thành công!" : "Cập nhật thành công!");
     } catch (err) {
       setFormError(err.response?.data?.message || "Có lỗi xảy ra khi lưu");
-      console.error(err);
     } finally {
       setSubmitting(false);
     }
@@ -156,7 +155,7 @@ const Users = () => {
     }
   };
 
-  if (!isChuKho()) {
+  if (!isQuanLyKho()) {
     return (
       <div style={{ padding: 40, textAlign: "center", color: "red" }}>
         Bạn không có quyền truy cập trang này.
@@ -172,7 +171,8 @@ const Users = () => {
           <div>
             <h1 className="users-title">Quản lý Người dùng</h1>
             <p className="users-subtitle">
-              {admins.length + managers.length} tài khoản
+              {quanLyKhoUser ? 1 : 0} Quản lý kho • {nhanVienKhoUsers.length}{" "}
+              Nhân viên kho
             </p>
           </div>
         </div>
@@ -189,44 +189,49 @@ const Users = () => {
           className={`tab ${activeTab === "no-manager" ? "active" : ""}`}
           onClick={() => setActiveTab("no-manager")}
         >
-          Kho chưa có Quản lý ({warehousesNoManager.length})
+          Kho chưa có Nhân viên ({warehousesNoManager.length})
         </div>
       </div>
 
       {activeTab === "users" && (
         <>
-          {/* ==================== BẢNG CHỦ KHO ==================== */}
+          {/* ==================== QUẢN LÝ KHO - CHỈ 1 TÀI KHOẢN ==================== */}
           <div className="users-table-wrap" style={{ marginBottom: "40px" }}>
-            <h2>👑 Tài khoản Admin / Chủ kho</h2>
-            <table className="us-table">
-              <thead>
-                <tr>
-                  <th>Tài khoản</th>
-                  <th>Mật khẩu</th>
-                  <th>Vai trò</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {admins.map((u) => (
-                  <tr key={u._id}>
+            <h2>👑 Tài khoản Quản lý kho {quanLyKhoUser ? "(Chính)" : ""}</h2>
+
+            {quanLyKhoUser ? (
+              <table className="us-table">
+                <thead>
+                  <tr>
+                    <th>Tài khoản</th>
+                    <th>Mật khẩu</th>
+                    <th>Vai trò</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr key={quanLyKhoUser._id}>
                     <td>
-                      <strong>{u.username}</strong>
+                      <strong>{quanLyKhoUser.username}</strong>
                     </td>
                     <td style={{ fontFamily: "monospace", color: "#ef4444" }}>
-                      {u.password || "••••••"}
+                      {quanLyKhoUser.password || "••••••"}
                     </td>
-                    <td>Chủ kho</td>
+                    <td>Quản lý kho</td>
                     <td>
-                      <button onClick={() => openEdit(u)}>Sửa</button>
+                      <button onClick={() => openEdit(quanLyKhoUser)}>
+                        Sửa
+                      </button>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            ) : (
+              <p>Chưa có tài khoản Quản lý kho nào.</p>
+            )}
           </div>
 
-          {/* ==================== BẢNG QUẢN LÝ KHO ==================== */}
+          {/* ==================== NHÂN VIÊN KHO ==================== */}
           <div className="users-table-wrap">
             <div
               style={{
@@ -236,12 +241,12 @@ const Users = () => {
                 marginBottom: "16px",
               }}
             >
-              <h2>📋 Tài khoản Quản lý kho</h2>
+              <h2>📋 Tài khoản Nhân viên kho</h2>
               <button
                 onClick={openAddManager}
                 className="us-btn us-btn-primary"
               >
-                + Thêm quản lý kho
+                + Thêm nhân viên kho
               </button>
             </div>
 
@@ -250,12 +255,12 @@ const Users = () => {
                 <tr>
                   <th>Tài khoản</th>
                   <th>Mật khẩu</th>
-                  <th>Kho quản lý</th>
+                  <th>Kho làm việc</th>
                   <th>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
-                {managers.map((u) => {
+                {nhanVienKhoUsers.map((u) => {
                   const whName =
                     warehouses.find((w) => w._id === u.warehouseId)?.name ||
                     "—";
@@ -288,38 +293,38 @@ const Users = () => {
 
       {activeTab === "no-manager" && (
         <div className="users-table-wrap">
-          <h3>Kho chưa có Quản lý</h3>
+          <h3>Kho chưa có Nhân viên kho</h3>
           {warehousesNoManager.length === 0 ? (
-            <p>✅ Tất cả kho đã có quản lý.</p>
+            <p>✅ Tất cả kho đã có nhân viên quản lý.</p>
           ) : (
             warehousesNoManager.map((wh) => (
               <div key={wh._id} className="warehouse-item">
                 <strong>{wh.name}</strong>
                 <button
                   onClick={() => {
-                    const username = `ql_${wh.name.toLowerCase().replace(/\s+/g, "")}`;
+                    const username = `nv_${wh.name.toLowerCase().replace(/\s+/g, "")}`;
                     if (
                       window.confirm(
-                        `Tạo quản lý cho ${wh.name}?\nUsername: ${username}\nMật khẩu: 123456`,
+                        `Tạo nhân viên kho cho ${wh.name}?\nUsername: ${username}\nMật khẩu: 123456`,
                       )
                     ) {
                       userApi
                         .create({
-                          name: `Quản lý ${wh.name}`,
+                          name: `Nhân viên ${wh.name}`,
                           username,
                           password: "123456",
-                          role: "quan_ly_kho",
+                          role: "nhan_vien_kho",
                           warehouseId: wh._id,
                           status: "active",
                         })
                         .then(() => {
-                          alert("Tạo quản lý kho thành công!");
+                          alert("Tạo nhân viên kho thành công!");
                           fetchData();
                         });
                     }
                   }}
                 >
-                  Tạo Quản lý kho
+                  Tạo Nhân viên kho
                 </button>
               </div>
             ))
@@ -334,10 +339,10 @@ const Users = () => {
             <div className="modal-header">
               <h2>
                 {modalMode === "add"
-                  ? "Thêm Quản lý kho mới"
-                  : editingUser?.role === "chu_kho"
-                    ? "Sửa thông tin Chủ kho"
-                    : "Sửa thông tin Quản lý kho"}
+                  ? "Thêm Nhân viên kho mới"
+                  : editingUser?.role === "quan_ly_kho"
+                    ? "Sửa thông tin Quản lý kho"
+                    : "Sửa thông tin Nhân viên kho"}
               </h2>
               <button onClick={() => setShowModal(false)}>✕</button>
             </div>
@@ -368,8 +373,8 @@ const Users = () => {
                   required
                 />
 
-                {/* Chỉ hiển thị Email và Kho quản lý khi là Quản lý kho */}
-                {editingUser?.role !== "chu_kho" && (
+                {/* Chỉ hiển thị Email và Kho khi là Nhân viên kho */}
+                {editingUser?.role !== "quan_ly_kho" && (
                   <>
                     <label>Email</label>
                     <input
@@ -380,7 +385,7 @@ const Users = () => {
                       }
                     />
 
-                    <label>Kho quản lý *</label>
+                    <label>Kho làm việc *</label>
                     <select
                       value={formData.warehouseId}
                       onChange={(e) =>

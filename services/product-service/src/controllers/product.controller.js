@@ -26,7 +26,7 @@ const validateProductDates = (manufacturingDate, expiryDate) => {
 // GET ALL
 const getAllProducts = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, search, status } = req.query;
+    const { page = 1, limit = 24, search, status, warehouseId } = req.query;
     const query = {};
 
     if (search) {
@@ -36,6 +36,12 @@ const getAllProducts = async (req, res, next) => {
       ];
     }
     if (status) query.status = status;
+
+    // Lọc theo kho nếu có warehouseId
+    if (warehouseId) {
+      query["stocks.warehouseId"] = warehouseId;
+      query["stocks.quantity"] = { $gt: 0 };
+    }
 
     const [products, total] = await Promise.all([
       Product.find(query)
@@ -151,7 +157,8 @@ const uploadImage = (req, res) => {
 // ====================== INCREASE / DECREASE STOCK ======================
 const increaseStock = async (req, res, next) => {
   try {
-    const { quantity, manufacturingDate, expiryDate, warehouseId } = req.body;
+    const { quantity, manufacturingDate, expiryDate, warehouseId, unit } =
+      req.body;
     const numQuantity = Number(quantity);
 
     if (!warehouseId) {
@@ -182,6 +189,65 @@ const increaseStock = async (req, res, next) => {
       product.stocks = [];
     }
 
+    // --- XỬ LÝ LÔ HÀNG (BATCHES) ---
+    if (!product.batches) product.batches = [];
+
+    // Hàm chuẩn hóa ngày (YYYY-MM-DD) để so sánh chính xác lô hàng
+    const normalizeDate = (d) => {
+      if (!d) return null;
+      const date = new Date(d);
+      return isNaN(date.getTime()) ? null : date.toISOString().split("T")[0];
+    };
+
+    const mfgKey = normalizeDate(manufacturingDate);
+    const expKey = normalizeDate(expiryDate);
+
+    // Tìm lô hàng có cùng NSX và HSD
+    let batch = product.batches.find((b) => {
+      return (
+        normalizeDate(b.manufacturingDate) === mfgKey &&
+        normalizeDate(b.expiryDate) === expKey
+      );
+    });
+
+    if (!batch) {
+      // Nếu không tìm thấy và là nhập kho (quantity > 0) -> Tạo lô mới
+      if (numQuantity > 0) {
+        const mfgDate = manufacturingDate ? new Date(manufacturingDate) : null;
+        const expDate = expiryDate ? new Date(expiryDate) : null;
+
+        const maxBatchNo = product.batches.reduce(
+          (max, b) => Math.max(max, b.batchNo || 0),
+          0,
+        );
+        batch = {
+          batchNo: maxBatchNo + 1,
+          manufacturingDate:
+            mfgDate && !isNaN(mfgDate.getTime()) ? mfgDate : null,
+          expiryDate: expDate && !isNaN(expDate.getTime()) ? expDate : null,
+          stocks: [{ warehouseId, quantity: numQuantity }],
+        };
+        product.batches.push(batch);
+      }
+    } else {
+      // Nếu tìm thấy lô hàng -> Cập nhật số lượng trong lô đó
+      const bWhIndex = batch.stocks.findIndex(
+        (s) => s.warehouseId.toString() === warehouseId.toString(),
+      );
+      if (bWhIndex !== -1) {
+        batch.stocks[bWhIndex].quantity += numQuantity;
+      } else {
+        if (numQuantity > 0) {
+          batch.stocks.push({ warehouseId, quantity: numQuantity });
+        }
+      }
+
+      // Xóa lô nếu số lượng về 0 (tùy chọn)
+      if (batch.stocks.every((s) => s.quantity <= 0)) {
+        // Có thể giữ lại để lưu lịch sử hoặc xóa
+      }
+    }
+
     // Tìm kho hiện tại
     const stockIndex = product.stocks.findIndex(
       (s) =>
@@ -208,6 +274,7 @@ const increaseStock = async (req, res, next) => {
     if (manufacturingDate)
       product.manufacturingDate = new Date(manufacturingDate);
     if (expiryDate) product.expiryDate = new Date(expiryDate);
+    if (unit) product.unit = unit;
 
     await product.save();
 

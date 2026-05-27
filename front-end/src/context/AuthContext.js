@@ -18,7 +18,7 @@ export const AuthProvider = ({ children }) => {
 
   // Kiểm tra user đã đăng nhập chưa khi reload trang
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
+    const storedUser = sessionStorage.getItem("user");
     if (storedUser) {
       setUser(JSON.parse(storedUser));
     }
@@ -28,45 +28,50 @@ export const AuthProvider = ({ children }) => {
   const login = (userData) => {
     let processedUser = { ...userData };
 
-    // Xử lý hiển thị tên kho cho Quản lý kho
     if (userData.role === "quan_ly_kho") {
       processedUser.warehouseName = userData.warehouseName || "Chưa gán";
-      processedUser.fullName = userData.name || userData.fullName;
-    } else if (userData.role === "chu_kho") {
-      processedUser.fullName = userData.name || "Chủ Kho";
+      processedUser.fullName =
+        userData.name || userData.fullName || "Quản lý kho";
+    } else if (userData.role === "nhan_vien_kho") {
+      processedUser.warehouseName =
+        userData.warehouseName ||
+        userData.name?.replace("Nhân viên ", "") ||
+        "Chưa gán";
+
+      processedUser.fullName =
+        userData.name || userData.fullName || "Nhân viên kho";
     }
 
-    localStorage.setItem("user", JSON.stringify(processedUser));
+    sessionStorage.setItem("user", JSON.stringify(processedUser));
     setUser(processedUser);
   };
 
   const logout = () => {
-    localStorage.removeItem("user");
+    sessionStorage.removeItem("user");
     setUser(null);
     navigate("/login");
   };
 
   // === Helper functions ===
-  const isChuKho = () => user?.role === "chu_kho";
   const isQuanLyKho = () => user?.role === "quan_ly_kho";
-  const isNhanVien = () => user?.role === "nhan_vien";
+  const isNhanVienKho = () => user?.role === "nhan_vien_kho";
 
   // Kiểm tra quyền truy cập trang
   const canAccess = (pageKey) => {
     if (!user) return false;
-    if (isChuKho()) return true;
+    if (isQuanLyKho()) return true; // Quản lý kho có full quyền
 
-    // Quản lý kho chỉ xem được một số trang
-    const allowedForManager = ["dashboard", "import", "export", "inventory"];
+    // Nhân viên kho chỉ xem được một số trang
+    const allowedForNhanVien = ["dashboard", "import", "export", "inventory"];
 
-    return allowedForManager.includes(pageKey);
+    return allowedForNhanVien.includes(pageKey);
   };
 
   // Kiểm tra có được xem kho này không
   const canAccessWarehouse = (warehouseId) => {
     if (!user) return false;
-    if (isChuKho()) return true;
-    if (isQuanLyKho()) {
+    if (isQuanLyKho()) return true; // Quản lý kho xem tất cả kho
+    if (isNhanVienKho()) {
       return user.warehouseId === warehouseId || !warehouseId;
     }
     return false;
@@ -76,9 +81,8 @@ export const AuthProvider = ({ children }) => {
     user,
     login,
     logout,
-    isChuKho,
     isQuanLyKho,
-    isNhanVien,
+    isNhanVienKho,
     canAccess,
     canAccessWarehouse,
     loading,

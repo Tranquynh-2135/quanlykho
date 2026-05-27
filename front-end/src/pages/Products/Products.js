@@ -14,6 +14,8 @@ const Products = () => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ totalPages: 1, total: 0 });
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState("add");
@@ -43,14 +45,22 @@ const Products = () => {
       const res = await productApi.getAll({
         ...(search && { search }),
         ...(filterStatus && { status: filterStatus }),
+        page,
+        limit: 24,
       });
       setProducts(res.data.data || []);
+      setPagination(res.data.pagination || { totalPages: 1, total: 0 });
       setError(null);
     } catch (err) {
       setError("Không thể tải danh sách sản phẩm.");
     } finally {
       setLoading(false);
     }
+  }, [search, filterStatus, page]);
+
+  // Reset về trang 1 khi tìm kiếm hoặc lọc
+  useEffect(() => {
+    setPage(1);
   }, [search, filterStatus]);
 
   useEffect(() => {
@@ -166,7 +176,9 @@ const Products = () => {
           <span className="pp-title-icon">📦</span>
           <div>
             <h1 className="pp-title">Quản lý Sản phẩm</h1>
-            <p className="pp-subtitle">{products.length} sản phẩm</p>
+            <p className="pp-subtitle">
+              Tổng cộng: {pagination.total || 0} sản phẩm
+            </p>
           </div>
         </div>
         <button className="pp-btn pp-btn-primary" onClick={openAdd}>
@@ -209,56 +221,91 @@ const Products = () => {
           <p>Chưa có sản phẩm nào.</p>
         </div>
       ) : (
-        <div className="pp-card-grid">
-          {products.map((p) => (
-            <div key={p._id} className="pp-card">
-              <div className="pp-card-img-wrap">
-                {p.imageHash ? (
-                  <img
-                    src={productApi.imageUrl(p.imageHash)}
-                    alt={p.name}
-                    className="pp-card-img"
-                  />
-                ) : (
-                  <div className="pp-card-no-img">📷</div>
-                )}
-                <span className={`pp-card-status pp-status-${p.status}`}>
-                  {statusLabel(p.status)}
-                </span>
-              </div>
+        <>
+          <div className="pp-card-grid">
+            {products.map((p) => (
+              <div key={p._id} className="pp-card">
+                <div className="pp-card-img-wrap">
+                  {p.imageHash ? (
+                    <img
+                      src={productApi.imageUrl(p.imageHash)}
+                      alt={p.name}
+                      className="pp-card-img"
+                    />
+                  ) : (
+                    <div className="pp-card-no-img">📷</div>
+                  )}
+                  <span className={`pp-card-status pp-status-${p.status}`}>
+                    {statusLabel(p.status)}
+                  </span>
+                </div>
 
-              <div className="pp-card-body">
-                <code className="pp-code">{p.code}</code>
-                <h3 className="pp-card-name">{p.name}</h3>
-                {p.categoryId && (
-                  <div className="pp-card-category">
-                    Danh mục: <strong>{p.categoryId.name || "—"}</strong>
-                  </div>
-                )}
-                {p.description && (
-                  <p className="pp-card-desc">{p.description}</p>
-                )}
-              </div>
+                <div className="pp-card-body">
+                  <code className="pp-code">{p.code}</code>
+                  <h3 className="pp-card-name">{p.name}</h3>
+                  {p.categoryId && (
+                    <div className="pp-card-category">
+                      Danh mục: <strong>{p.categoryId.name || "—"}</strong>
+                    </div>
+                  )}
+                  {p.description && (
+                    <p className="pp-card-desc">{p.description}</p>
+                  )}
+                </div>
 
-              <div className="pp-card-footer">
-                <button
-                  className="pp-btn-icon pp-btn-edit"
-                  onClick={() => openEdit(p)}
-                  title="Sửa"
-                >
-                  ✏️
-                </button>
-                <button
-                  className="pp-btn-icon pp-btn-del"
-                  onClick={() => setDeleteTarget(p)}
-                  title="Xóa"
-                >
-                  🗑️
-                </button>
+                <div className="pp-card-footer">
+                  <button
+                    className="pp-btn-icon pp-btn-edit"
+                    onClick={() => openEdit(p)}
+                    title="Sửa"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    className="pp-btn-icon pp-btn-del"
+                    onClick={() => setDeleteTarget(p)}
+                    title="Xóa"
+                  >
+                    🗑️
+                  </button>
+                </div>
               </div>
+            ))}
+          </div>
+
+          {/* Bộ điều khiển phân trang */}
+          {pagination.totalPages > 1 && (
+            <div
+              className="pp-pagination"
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: "20px",
+                marginTop: "30px",
+                padding: "20px",
+              }}
+            >
+              <button
+                className="pp-btn pp-btn-ghost"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                Trang trước
+              </button>
+              <span className="pp-page-info" style={{ fontWeight: "600" }}>
+                Trang {page} / {pagination.totalPages || 1}
+              </span>
+              <button
+                className="pp-btn pp-btn-ghost"
+                disabled={page >= (pagination.totalPages || 1)}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Trang sau
+              </button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {/* Modal */}

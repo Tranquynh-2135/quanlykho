@@ -7,16 +7,13 @@ const TopBar = () => {
 
   if (!user) return null;
 
-  let roleLabel = "Người dùng";
+  let roleLabel = "Nhân viên kho";
 
-  if (user.role === "chu_kho") {
-    roleLabel = "Chủ Kho";
-  } else if (user.role === "quan_ly_kho") {
-    const warehouseName =
-      user.warehouseName || user.name?.includes("A")
-        ? user.name?.replace("Quản lý ", "")
-        : "Chưa gán kho";
-    roleLabel = `Quản lý kho ${warehouseName}`;
+  if (user.role === "quan_ly_kho") {
+    roleLabel = "Quản lý kho";
+  } else if (user.role === "nhan_vien_kho") {
+    const warehouseName = user.warehouseName || "Chưa gán";
+    roleLabel = `Nhân viên kho ${warehouseName}`;
   }
 
   return (

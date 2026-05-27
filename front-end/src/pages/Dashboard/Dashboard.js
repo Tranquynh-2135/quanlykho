@@ -1,13 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { importApi } from "../../services/importApi";
 import { exportApi } from "../../services/exportApi";
+import { useNavigate } from "react-router-dom";
 import { productApi } from "../../services/productApi";
+import { warehouseApi } from "../../services/warehouseApi";
 import { useAuth } from "../../context/AuthContext";
+import { getExpiryInfo } from "../../utils/expiryHelper";
 import "./Dashboard.css";
 
 const Dashboard = () => {
-  const { user, isChuKho } = useAuth();
+  const { user, isQuanLyKho } = useAuth();
+  const navigate = useNavigate();
   const warehouseId = user?.warehouseId;
+
+  const [warehouses, setWarehouses] = useState([]);
+  const [selectedWarehouse, setSelectedWarehouse] = useState("");
 
   const [stats, setStats] = useState({
     totalRevenue: 0,
@@ -16,47 +23,66 @@ const Dashboard = () => {
     thisMonthRevenue: 0,
     todayImports: 0,
     todayExports: 0,
+    lowStockCount: 0,
+    expiringSoonCount: 0,
     totalProducts: 0,
   });
 
   const [recentImports, setRecentImports] = useState([]);
   const [recentExports, setRecentExports] = useState([]);
   const [lowStockProducts, setLowStockProducts] = useState([]);
-  const [nearExpiryProducts, setNearExpiryProducts] = useState([]);
+  const [expiringProducts, setExpiringProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, [warehouseId]);
+  const [error, setError] = useState(null);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      setError(null);
 
-      const [importRes, exportRes, productRes] = await Promise.all([
-        importApi.getAll({ limit: 6 }),
-        exportApi.getAll(),
-        productApi.getAll({ status: "active" }),
-      ]);
+      const [importRes, exportRes, productRes, warehouseRes] =
+        await Promise.all([
+          importApi.getAll({ limit: 1000 }), // Tăng limit để thống kê chính xác
+          exportApi.getAll(),
+          productApi.getAll({ status: "active", limit: 1000 }),
+          warehouseApi.getAll(),
+        ]);
 
-      const imports = importRes.data?.data || [];
+      let imports = importRes.data?.data || [];
       let exports = exportRes.data?.data || [];
       const products = productRes.data?.data || [];
+      const whList = warehouseRes.data?.data || [];
+      setWarehouses(whList);
 
-      // Lọc theo kho cho Quản lý kho
-      if (!isChuKho && warehouseId) {
-        exports = exports.filter((exp) => exp.warehouseId === warehouseId);
+      // ==================== LỌC THEO KHO ====================
+      // Nếu là NV kho -> ép buộc lọc theo kho của họ. Nếu là QL -> lọc theo selectedWarehouse (nếu có chọn)
+      const filterId = isQuanLyKho() ? selectedWarehouse : warehouseId;
+
+      if (filterId) {
+        imports = imports.filter(
+          (imp) => String(imp.warehouseId) === String(filterId),
+        );
+        exports = exports.filter(
+          (exp) => String(exp.warehouseId) === String(filterId),
+        );
       }
 
-      // Tính doanh thu từ phiếu xuất
+      // ==================== TÍNH DOANH THU ====================
       let totalRevenue = 0;
       let todayRevenue = 0;
       let thisWeekRevenue = 0;
       let thisMonthRevenue = 0;
+      let todayImportsCount = 0;
+      let todayExportsCount = 0;
 
-      const today = new Date().toISOString().split("T")[0];
+      // Lấy ngày hiện tại theo giờ địa phương (YYYY-MM-DD)
+      const now = new Date();
+      const todayStr = now.toLocaleDateString("en-CA");
+
       const startOfWeek = new Date();
       startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+
       const startOfMonth = new Date(
         new Date().getFullYear(),
         new Date().getMonth(),
@@ -67,13 +93,50 @@ const Dashboard = () => {
         const amount = Number(exp.totalAmount || 0);
         totalRevenue += amount;
 
-        const expDate = new Date(exp.createdAt);
-        const expDateStr = expDate.toISOString().split("T")[0];
+        const expDate = new Date(exp.createdAt || exp.exportDate);
+        const expDateStr = expDate.toLocaleDateString("en-CA");
 
-        if (expDateStr === today) todayRevenue += amount;
-
+        if (expDateStr === todayStr) {
+          todayRevenue += amount;
+          todayExportsCount++;
+        }
         if (expDate >= startOfWeek) thisWeekRevenue += amount;
         if (expDate >= startOfMonth) thisMonthRevenue += amount;
+      });
+
+      imports.forEach((imp) => {
+        const impDate = new Date(imp.importDate || imp.createdAt);
+        if (impDate.toLocaleDateString("en-CA") === todayStr)
+          todayImportsCount++;
+      });
+
+      // ==================== TÍNH CẢNH BÁO TỒN KHO & HSD ====================
+      let totalLowStockCount = 0;
+      let totalExpiringSoonCount = 0;
+      const expiringSoonList = [];
+
+      products.forEach((p) => {
+        const stockAtWh = getStockAtWarehouse(p, filterId);
+        if (stockAtWh > 0 && stockAtWh <= (p.minStock || 10)) {
+          totalLowStockCount++;
+        }
+
+        if (p.batches && Array.isArray(p.batches)) {
+          const expBatch = p.batches.find((b) => {
+            const hasStock = b.stocks?.some(
+              (s) =>
+                (!filterId || String(s.warehouseId) === String(filterId)) &&
+                s.quantity > 0,
+            );
+            if (!hasStock || !b.expiryDate) return false;
+            const exp = getExpiryInfo(b.expiryDate);
+            return exp && exp.daysLeft <= 30;
+          });
+          if (expBatch) {
+            totalExpiringSoonCount++;
+            expiringSoonList.push({ ...p, earliestExp: expBatch.expiryDate });
+          }
+        }
       });
 
       setStats({
@@ -81,47 +144,83 @@ const Dashboard = () => {
         todayRevenue,
         thisWeekRevenue,
         thisMonthRevenue,
-        todayImports: imports.length,
-        todayExports: exports.length,
+        todayImports: todayImportsCount,
+        todayExports: todayExportsCount,
         totalProducts: products.length,
+        lowStockCount: totalLowStockCount,
+        expiringSoonCount: totalExpiringSoonCount,
       });
 
       setRecentImports(imports.slice(0, 5));
       setRecentExports(exports.slice(0, 5));
 
-      // Sản phẩm tồn thấp
+      // ==================== SẢN PHẨM TỒN THẤP ====================
       const lowStock = products
-        .filter(
-          (p) => (p.stock || 0) > 0 && (p.stock || 0) <= (p.minStock || 15),
-        )
+        .filter((p) => {
+          // Tính tồn dựa trên kho đang lọc
+          const stockAtWh = getStockAtWarehouse(p, filterId);
+          return stockAtWh > 0 && stockAtWh <= (p.minStock || 10); // Consistent with Inventory.js
+        })
         .slice(0, 6);
       setLowStockProducts(lowStock);
-
-      // Sản phẩm gần hết hạn
-      const nearExpiry = products
-        .filter((p) => p.expiryDays && p.expiryDays <= 45)
-        .sort((a, b) => a.expiryDays - b.expiryDays)
-        .slice(0, 6);
-      setNearExpiryProducts(nearExpiry);
+      setExpiringProducts(expiringSoonList.slice(0, 6));
     } catch (err) {
       console.error("Lỗi tải dashboard:", err);
+      setError(err.response?.data?.message || err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading)
+  useEffect(() => {
+    fetchDashboardData();
+  }, [warehouseId, isQuanLyKho, selectedWarehouse]); // Reload khi đổi user/kho hoặc chọn kho mới
+
+  if (loading) {
     return <div className="dashboard-loading">Đang tải dữ liệu...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="dashboard-error">
+        ❌ Lỗi tải dữ liệu: {error}. Vui lòng kiểm tra kết nối Server và
+        JWT_SECRET.
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-root">
-      <h1 className="dashboard-title">
-        {isChuKho
-          ? "Tổng quan hệ thống"
-          : `Tổng quan kho ${user?.warehouseName || ""}`}
-      </h1>
+      <div className="dashboard-header-row">
+        <h1 className="dashboard-title">
+          {isQuanLyKho()
+            ? selectedWarehouse
+              ? `Tổng quan ${warehouses.find((w) => w._id === selectedWarehouse)?.name}`
+              : "Tổng quan toàn hệ thống"
+            : `Tổng quan kho ${user?.warehouseName || ""}`}
+        </h1>
 
-      {/* Thẻ thống kê Doanh thu */}
+        {/* Dropdown chọn kho cho Quản lý */}
+        {isQuanLyKho() && (
+          <div className="dashboard-filter">
+            <label>Xem theo kho: </label>
+            <select
+              value={selectedWarehouse}
+              onChange={(e) => setSelectedWarehouse(e.target.value)}
+              className="db-warehouse-select"
+            >
+              <option value="">Toàn bộ kho</option>
+              {warehouses.map((wh) => (
+                <option key={wh._id} value={wh._id}>
+                  {wh.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
+      {/* Thẻ thống kê */}
       <div className="stats-grid">
         <div className="stat-card success">
           <div className="stat-icon">💰</div>
@@ -168,9 +267,8 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* 2 cột chính */}
+      {/* 2 cột: Phiếu nhập & Phiếu xuất gần đây */}
       <div className="db-two-col">
-        {/* Phiếu nhập gần đây */}
         <div className="db-section">
           <h2 className="db-section-title">📥 Phiếu nhập gần đây</h2>
           {recentImports.length === 0 ? (
@@ -196,7 +294,6 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Phiếu xuất gần đây */}
         <div className="db-section">
           <h2 className="db-section-title">📤 Phiếu xuất gần đây</h2>
           {recentExports.length === 0 ? (
@@ -226,14 +323,56 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Sản phẩm tồn thấp & Gần hết hạn */}
+      {/* Các thẻ cảnh báo có thể nhấp (Đã chuyển xuống dưới) */}
+      <div className="stats-grid" style={{ marginTop: "24px" }}>
+        <div
+          className="stat-card warning clickable"
+          onClick={() =>
+            navigate("/inventory", {
+              state: {
+                filterCriteria: "low_stock",
+                selectedWarehouse: selectedWarehouse,
+              },
+            })
+          }
+        >
+          <div className="stat-icon">📉</div>
+          <div className="stat-content">
+            <h3>Cảnh báo tồn thấp</h3>
+            <div className="stat-value">{stats.lowStockCount}</div>
+            <p className="stat-desc">sản phẩm</p>
+          </div>
+        </div>
+
+        <div
+          className="stat-card danger clickable"
+          onClick={() =>
+            navigate("/inventory", {
+              state: {
+                filterCriteria: "expiry_30",
+                selectedWarehouse: selectedWarehouse,
+              },
+            })
+          }
+        >
+          <div className="stat-icon">⏳</div>
+          <div className="stat-content">
+            <h3>Sắp hết hạn (30 ngày)</h3>
+            <div className="stat-value">{stats.expiringSoonCount}</div>
+            <p className="stat-desc">sản phẩm</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Danh sách chi tiết Cảnh báo tồn kho & HSD */}
       <div className="db-section db-full-section">
         <div className="db-section-header">
-          <h2 className="db-section-title">⚠️ Cảnh báo tồn kho</h2>
+          <h2 className="db-section-title">
+            ⚠️ Chi tiết các mặt hàng cần lưu ý
+          </h2>
         </div>
 
         <div className="db-two-col">
-          {/* Tồn thấp */}
           <div className="db-section">
             <h3>Tồn kho thấp</h3>
             {lowStockProducts.length === 0 ? (
@@ -243,33 +382,68 @@ const Dashboard = () => {
                 <div key={p._id} className="low-stock-row">
                   <strong>{p.code}</strong> - {p.name}
                   <span style={{ color: "#ef4444", float: "right" }}>
-                    {p.stock} / {p.minStock || 10}
+                    {getStockAtWarehouse(
+                      p,
+                      isQuanLyKho() ? selectedWarehouse : warehouseId,
+                    )}{" "}
+                    / {p.minStock || 10}
                   </span>
                 </div>
               ))
             )}
           </div>
 
-          {/* Gần hết hạn */}
           <div className="db-section">
-            <h3>Gần hết hạn</h3>
-            {nearExpiryProducts.length === 0 ? (
-              <p>Không có sản phẩm gần hết hạn</p>
+            <h3>Sản phẩm sắp hết hạn</h3>
+            {expiringProducts.length === 0 ? (
+              <p>Không có sản phẩm sắp hết hạn</p>
             ) : (
-              nearExpiryProducts.map((p) => (
-                <div key={p._id} className="low-stock-row">
-                  <strong>{p.code}</strong> - {p.name}
-                  <span style={{ color: "#f59e0b", float: "right" }}>
-                    Còn {p.expiryDays} ngày
-                  </span>
-                </div>
-              ))
+              expiringProducts.map((p) => {
+                const expInfo = getExpiryInfo(p.earliestExp);
+                return (
+                  <div
+                    key={p._id}
+                    className="low-stock-row"
+                    style={{
+                      borderLeftColor: "#eab308",
+                      background: "#fefce8",
+                    }}
+                  >
+                    <strong>{p.code}</strong> - {p.name}
+                    <span
+                      style={{
+                        color: "#eab308",
+                        float: "right",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      {expInfo ? expInfo.label : ""}
+                    </span>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
       </div>
     </div>
   );
+};
+
+// Helper function
+const getStockAtWarehouse = (product, warehouseId) => {
+  if (product.stocks && Array.isArray(product.stocks)) {
+    if (!warehouseId) {
+      // Nếu không lọc kho -> tính tổng tất cả kho
+      return product.stocks.reduce((sum, s) => sum + (s.quantity || 0), 0);
+    }
+    // Tìm tồn của kho cụ thể
+    const stockEntry = product.stocks.find(
+      (s) => String(s.warehouseId) === String(warehouseId),
+    );
+    return stockEntry ? stockEntry.quantity : 0;
+  }
+  return 0;
 };
 
 export default Dashboard;

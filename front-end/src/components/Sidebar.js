@@ -1,4 +1,3 @@
-// src/components/Sidebar.js
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -22,58 +21,59 @@ const Sidebar = () => {
       to: "/",
       icon: <FaHome />,
       label: "Dashboard",
-      roles: ["chu_kho", "quan_ly_kho"],
+      roles: ["quan_ly_kho", "nhan_vien_kho"],
     },
     {
       to: "/products",
       icon: <FaBox />,
       label: "Quản lý Sản phẩm",
-      roles: ["chu_kho"],
+      roles: ["quan_ly_kho"],
     },
     {
       to: "/inventory",
       icon: <FaWarehouse />,
       label: "Tồn kho",
-      roles: ["chu_kho", "quan_ly_kho"],
+      roles: ["quan_ly_kho", "nhan_vien_kho"],
     },
     {
       to: "/suppliers",
       icon: <FaTruck />,
       label: "Nhà cung cấp",
-      roles: ["chu_kho"],
+      roles: ["quan_ly_kho"],
     },
     {
       to: "/warehouses",
       icon: <FaWarehouse />,
       label: "Quản lý Kho",
-      roles: ["chu_kho"],
+      roles: ["quan_ly_kho"],
     },
     {
       to: "/import",
       icon: <FaSignInAlt />,
       label: "Nhập kho",
-      roles: ["chu_kho", "quan_ly_kho"],
+      roles: ["quan_ly_kho", "nhan_vien_kho"],
     },
     {
       to: "/export",
       icon: <FaSignOutAlt />,
       label: "Xuất kho",
-      roles: ["chu_kho", "quan_ly_kho"],
+      roles: ["quan_ly_kho", "nhan_vien_kho"],
     },
     {
       to: "/categories",
       icon: <FaTags />,
       label: "Quản lý Danh mục",
-      roles: ["chu_kho"],
+      roles: ["quan_ly_kho"],
     },
     {
       to: "/users",
       icon: <FaUsers />,
       label: "Người dùng",
-      roles: ["chu_kho"],
+      roles: ["quan_ly_kho"],
     },
   ];
 
+  // Lọc menu theo role của user
   const filteredMenu = menu.filter((item) => item.roles.includes(user?.role));
 
   return (

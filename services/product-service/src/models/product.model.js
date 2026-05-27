@@ -41,6 +41,22 @@ const productSchema = new mongoose.Schema(
       },
     ],
 
+    // === QUẢN LÝ THEO LÔ (Batches) ===
+    batches: [
+      {
+        batchNo: { type: Number, required: true },
+        manufacturingDate: { type: Date },
+        expiryDate: { type: Date },
+        stocks: [
+          {
+            warehouseId: { type: String, required: true },
+            quantity: { type: Number, default: 0, min: 0 },
+          },
+        ],
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+
     stock: {
       type: Number,
       default: 0,

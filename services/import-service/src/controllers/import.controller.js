@@ -34,7 +34,12 @@ const getAllImports = async (req, res, next) => {
     res.json({
       success: true,
       data: imports,
-      pagination: { total, page: Number(page), limit: Number(limit) },
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / Number(limit)),
+      },
     });
   } catch (err) {
     next(err);
@@ -84,11 +89,11 @@ const createImport = async (req, res, next) => {
         unitPrice: price,
         unit: (item.unit || "").toString().trim(),
         totalPrice,
+        warehouseId: warehouseId,
         manufacturingDate: item.manufacturingDate
           ? new Date(item.manufacturingDate)
           : null,
         expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
-        warehouseId: warehouseId,
       };
     });
 
@@ -104,25 +109,35 @@ const createImport = async (req, res, next) => {
 
     const savedImport = await newImport.save();
 
+    // Chuẩn bị cấu hình axios để truyền Token sang product-service
+    const authHeader = req.headers.authorization;
+    const axiosConfig = authHeader
+      ? { headers: { Authorization: authHeader } }
+      : {};
+
     // === TĂNG STOCK ===
+    // === TĂNG STOCK VỚI BATCH ===
     for (const item of processedItems) {
       try {
         await axios.patch(
           `${PRODUCT_SERVICE_URL}/products/increase-stock/${item.productCode}`,
           {
             quantity: item.quantity,
+            warehouseId: savedImport.warehouseId,
+            unit: item.unit || "",
             manufacturingDate: item.manufacturingDate,
             expiryDate: item.expiryDate,
-            warehouseId: savedImport.warehouseId,
           },
+          axiosConfig,
         );
+
         console.log(
-          `✅ Cập nhật stock thành công cho ${item.productCode} - Kho: ${savedImport.warehouseId}`,
+          `✅ Cập nhật stock thành công cho ${item.productCode} | Số lượng: ${item.quantity}`,
         );
       } catch (err) {
         console.error(
           `❌ Không tăng stock cho ${item.productCode}:`,
-          err.message,
+          err.response?.data?.message || err.message,
         );
       }
     }
@@ -155,7 +170,10 @@ const deleteImport = async (req, res, next) => {
       try {
         await axios.patch(
           `${PRODUCT_SERVICE_URL}/products/increase-stock/${item.productCode}`,
-          { quantity: -item.quantity }, // Trừ tồn kho
+          {
+            quantity: -item.quantity, // Trừ tồn kho
+            warehouseId: importDoc.warehouseId,
+          }, // Trừ tồn kho chính xác theo lô
         );
       } catch (err) {
         console.error(`Không trừ được stock cho ${item.productCode}`);

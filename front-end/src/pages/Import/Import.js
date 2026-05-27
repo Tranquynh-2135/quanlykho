@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import Select from "react-select";
 import { importApi } from "../../services/importApi";
 import { supplierApi } from "../../services/supplierApi";
@@ -8,11 +9,14 @@ import { useAuth } from "../../context/AuthContext";
 import "./Import.css";
 
 const Import = () => {
+  const location = useLocation();
   const [suppliers, setSuppliers] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [imports, setImports] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ totalPages: 1, total: 0 });
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [detailTarget, setDetailTarget] = useState(null);
@@ -48,49 +52,64 @@ const Import = () => {
     ],
   });
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        const [supRes, whRes, prodRes, catRes, impRes] = await Promise.all([
-          supplierApi.getAll({ status: "active" }),
-          warehouseApi.getAll({ status: "active" }),
-          fetch("http://localhost:4001/products").then((r) => r.json()),
-          productApi.getAllCategories(),
-          importApi.getAll(),
-        ]);
+  const loadData = async (showLoading = true, currentPage = 1) => {
+    try {
+      if (showLoading) setLoading(true);
+      const [supRes, whRes, prodRes, catRes, impRes] = await Promise.all([
+        supplierApi.getAll({ status: "active" }),
+        warehouseApi.getAll({ status: "active" }),
+        fetch("http://localhost:4001/products").then((r) => r.json()),
+        productApi.getAllCategories(),
+        importApi.getAll({ page: currentPage, limit: 20 }),
+      ]);
 
-        setSuppliers(supRes.data.data || []);
-        setWarehouses(whRes.data.data || []);
-        setProducts(prodRes.data || prodRes || []);
-        setCategories(catRes.data.data || []);
-        setImports(impRes.data.data || []);
-      } catch (err) {
-        console.error("Lỗi tải dữ liệu:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, []);
+      setSuppliers(supRes.data.data || []);
+      setWarehouses(whRes.data.data || []);
+      setProducts(prodRes.data || prodRes || []);
+      setCategories(catRes.data.data || []);
+      setImports(impRes.data.data || []);
+      setPagination(impRes.data.pagination || { totalPages: 1, total: 0 });
+    } catch (err) {
+      console.error("Lỗi tải dữ liệu:", err);
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData(true, page);
+  }, [page]);
+
+  // Xử lý tự động điền từ trang Tồn kho
+  useEffect(() => {
+    if (location.state?.prefill) {
+      const p = location.state.prefill;
+      setFormData((prev) => ({
+        ...prev,
+        warehouseId: p.warehouseId || prev.warehouseId,
+        items: [
+          {
+            productCode: p.productCode,
+            quantity: 1,
+            unitPrice: p.costPrice || 0,
+            unit: p.unit || "",
+            manufacturingDate: p.manufacturingDate || "",
+            expiryDate: p.expiryDate || "",
+          },
+        ],
+      }));
+    }
+  }, [location.state, products]);
 
   // Tự động điền kho cho Quản lý kho
   useEffect(() => {
-    if (user?.role === "quan_ly_kho" && user.warehouseId) {
+    if (user?.role === "nhan_vien_kho" && user.warehouseId) {
       setFormData((prev) => ({ ...prev, warehouseId: user.warehouseId }));
     }
   }, [user]);
 
-  useEffect(() => {
-    const sum = formData.items.reduce(
-      (acc, item) => acc + Number(item.quantity) * Number(item.unitPrice),
-      0,
-    );
-    setTotalAmount(sum);
-  }, [formData.items]);
-
   const warehouseOptions = useMemo(() => {
-    if (user?.role === "quan_ly_kho" && user.warehouseId) {
+    if (user?.role === "nhan_vien_kho" && user.warehouseId) {
       const myWarehouse = warehouses.find((w) => w._id === user.warehouseId);
       return myWarehouse
         ? [{ value: myWarehouse._id, label: myWarehouse.name }]
@@ -204,14 +223,11 @@ const Import = () => {
     if (field === "productCode" && value) {
       const selected = products.find((p) => p.code === value);
       if (selected) {
-        newItems[index].unitPrice = selected.costPrice || selected.price || 0;
-        if (selected.expiryDays) {
-          const expiry = new Date();
-          expiry.setDate(expiry.getDate() + selected.expiryDays);
-          newItems[index].expiryDate = expiry.toISOString().split("T")[0];
-        }
+        newItems[index].unitPrice =
+          selected.averageCost || selected.costPrice || 0;
         newItems[index].unit = selected.unit || "";
       }
+      // newItems[index].batchCode = ""; // Reset lô khi đổi SP - Đã xóa batch
     }
     setFormData((prev) => ({ ...prev, items: newItems }));
   };
@@ -225,8 +241,6 @@ const Import = () => {
           productCode: "",
           quantity: 1,
           unitPrice: 0,
-          manufacturingDate: "",
-          expiryDate: "",
           unit: "",
         },
       ],
@@ -257,9 +271,9 @@ const Import = () => {
           productCode: item.productCode,
           quantity: Number(item.quantity),
           unitPrice: Number(item.unitPrice),
-          unit: item.unit?.trim() || "",
           manufacturingDate: item.manufacturingDate || undefined,
           expiryDate: item.expiryDate || undefined,
+          unit: item.unit?.trim() || "",
           warehouseId: formData.warehouseId,
         })),
       };
@@ -288,8 +302,7 @@ const Import = () => {
         });
         setSelectedCategoryFilter("");
 
-        const fresh = await importApi.getAll();
-        setImports(fresh.data.data || []);
+        await loadData(false); // Tải lại toàn bộ dữ liệu bao gồm cả sản phẩm và lô hàng mới
       }
     } catch (err) {
       alert("❌ Lỗi: " + (err.response?.data?.message || err.message));
@@ -340,8 +353,7 @@ const Import = () => {
       const res = await importApi.delete(id);
       if (res.data.success) {
         alert(`✅ Đã xóa phiếu ${code} thành công!`);
-        const fresh = await importApi.getAll();
-        setImports(fresh.data.data || []);
+        await loadData(false); // Cập nhật lại tồn kho sau khi xóa phiếu
       }
     } catch (err) {
       alert(
@@ -445,13 +457,6 @@ const Import = () => {
         const lineTotal =
           Number(item.quantity || 0) * Number(item.unitPrice || 0);
 
-        const expiryStr = item.expiryDate
-          ? new Date(item.expiryDate).toLocaleDateString("vi-VN")
-          : "—";
-        const mfgStr = item.manufacturingDate
-          ? new Date(item.manufacturingDate).toLocaleDateString("vi-VN")
-          : "—";
-
         return `
         <tr>
           <td class="center">${i + 1}</td>
@@ -461,8 +466,8 @@ const Import = () => {
           <td class="center">${Number(item.quantity).toLocaleString("vi-VN")}</td>
           <td class="center">${item.unit || "—"}</td>
           <td class="right">${Number(item.unitPrice).toLocaleString("vi-VN")}</td>
-          <td class="center">${mfgStr}</td>
-          <td class="center">${expiryStr}</td>
+          <td class="center">${item.manufacturingDate ? new Date(item.manufacturingDate).toLocaleDateString("vi-VN") : "—"}</td>
+          <td class="center">${item.expiryDate ? new Date(item.expiryDate).toLocaleDateString("vi-VN") : "—"}</td>
           <td class="right bold">${lineTotal.toLocaleString("vi-VN")}</td>
         </tr>`;
       })
@@ -749,8 +754,8 @@ const Import = () => {
         <th rowspan="2" style="min-width:80px">Số lượng</th>
         <th rowspan="2" style="min-width:70px">Đơn vị tính</th>
         <th rowspan="2" style="min-width:90px">Đơn giá (₫)</th>
-        <th rowspan="2" style="min-width:80px">NSX</th>
-        <th rowspan="2" style="min-width:80px">HSD</th>
+        <th rowspan="2" style="min-width:100px">NSX</th>
+        <th rowspan="2" style="min-width:100px">HSD</th>
         <th rowspan="2" style="min-width:95px">Thành tiền (₫)</th>
       </tr>
     </thead>
@@ -876,11 +881,11 @@ const Import = () => {
         isSearchable
         className="react-select-container"
         classNamePrefix="react-select"
-        isDisabled={user?.role === "quan_ly_kho"} // Khóa dropdown
+        isDisabled={user?.role === "nhan_vien_kho"} // Khóa dropdown
       />
 
-      {/* Chỉ Chủ kho mới thấy nút + */}
-      {user?.role === "chu_kho" && (
+      {/* Chỉ quản lý kho mới thấy nút + */}
+      {user?.role === "quan_ly_kho" && (
         <button
           type="button"
           className="btn-add-inline"
@@ -967,7 +972,7 @@ const Import = () => {
                 />
 
                 {/* Chỉ Chủ kho mới thấy nút + */}
-                {user?.role === "chu_kho" && (
+                {user?.role === "quan_ly_kho" && (
                   <button
                     type="button"
                     className="btn-add-inline"
@@ -1013,7 +1018,7 @@ const Import = () => {
                     <th style={{ minWidth: 130 }}>Đơn vị tính</th>
                     <th style={{ minWidth: 140 }}>Giá vốn (₫)</th>
                     <th style={{ minWidth: 150 }}>NSX</th>
-                    <th style={{ minWidth: 130 }}>HSD</th>
+                    <th style={{ minWidth: 150 }}>HSD</th>
                     <th style={{ minWidth: 130 }}>Thành tiền</th>
                     <th style={{ minWidth: 60 }}></th>
                   </tr>
@@ -1402,6 +1407,38 @@ const Import = () => {
             )}
           </tbody>
         </table>
+
+        {/* Bộ điều khiển phân trang */}
+        {!loading && imports.length > 0 && pagination.totalPages > 1 && (
+          <div
+            className="pp-pagination"
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: "20px",
+              marginTop: "20px",
+            }}
+          >
+            <button
+              className="pp-btn pp-btn-ghost"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Trang trước
+            </button>
+            <span style={{ fontWeight: "600", color: "#64748b" }}>
+              Trang {page} / {pagination.totalPages}
+            </span>
+            <button
+              className="pp-btn pp-btn-ghost"
+              disabled={page >= pagination.totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Trang sau
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Modal chi tiết phiếu */}
@@ -1492,17 +1529,17 @@ const Import = () => {
                       </td>
                       <td>{item.unitPrice?.toLocaleString("vi-VN")} ₫</td>
                       <td>
-                        {item.manufacturingDate || prod?.manufacturingDate
-                          ? new Date(
-                              item.manufacturingDate || prod.manufacturingDate,
-                            ).toLocaleDateString("vi-VN")
+                        {item.manufacturingDate
+                          ? new Date(item.manufacturingDate).toLocaleDateString(
+                              "vi-VN",
+                            )
                           : "—"}
                       </td>
                       <td>
-                        {item.expiryDate || prod?.expiryDate
-                          ? new Date(
-                              item.expiryDate || prod.expiryDate,
-                            ).toLocaleDateString("vi-VN")
+                        {item.expiryDate
+                          ? new Date(item.expiryDate).toLocaleDateString(
+                              "vi-VN",
+                            )
                           : "—"}
                       </td>
                       <td>

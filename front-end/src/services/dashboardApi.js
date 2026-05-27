@@ -3,12 +3,27 @@ import axios from "axios";
 const productBase = "http://localhost:4001";
 const importBase = "http://localhost:4003";
 
+// Tạo instance có Interceptor hoặc sử dụng lại từ các service khác
+const httpProduct = axios.create({ baseURL: productBase });
+const httpImport = axios.create({ baseURL: importBase });
+
+const addAuthToken = (config) => {
+  const user = JSON.parse(sessionStorage.getItem("user"));
+  if (user && user.token) {
+    config.headers.Authorization = `Bearer ${user.token}`;
+  }
+  return config;
+};
+
+httpProduct.interceptors.request.use(addAuthToken);
+httpImport.interceptors.request.use(addAuthToken);
+
 export const dashboardApi = {
   // Thống kê tổng quát
   getStats: async () => {
     const [productsRes, importsRes] = await Promise.all([
-      axios.get(`${productBase}/products`),
-      axios.get(`${importBase}/imports`),
+      httpProduct.get("/products"),
+      httpImport.get("/imports"),
     ]);
 
     const products = productsRes.data.data || productsRes.data;

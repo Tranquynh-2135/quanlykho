@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import Select from "react-select";
 import { exportApi } from "../../services/exportApi";
 import { productApi } from "../../services/productApi";
@@ -7,13 +8,16 @@ import { useAuth } from "../../context/AuthContext";
 import "./Export.css";
 
 const Export = () => {
-  const { user } = useAuth();
-  const isChuKho = user?.role === "chu_kho";
+  const location = useLocation();
+  const { user, isQuanLyKho } = useAuth();
+  const isManager = isQuanLyKho();
 
   const [warehouses, setWarehouses] = useState([]);
   const [products, setProducts] = useState([]);
   const [exports, setExports] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ totalPages: 1, total: 0 });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("");
@@ -27,41 +31,72 @@ const Export = () => {
     recipient: "",
     recipientType: "khach_hang",
     note: "",
-    items: [{ productCode: "", quantity: 1, unitPrice: 0 }],
+    items: [
+      {
+        productCode: "",
+        quantity: 1,
+        unitPrice: 0,
+        manufacturingDate: "",
+        expiryDate: "",
+      },
+    ],
   });
 
   const [totalAmount, setTotalAmount] = useState(0);
   const [detailTarget, setDetailTarget] = useState(null);
 
   // Load dữ liệu ban đầu
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        const [whRes, prodRes, expRes] = await Promise.all([
-          warehouseApi.getAll({ status: "active" }),
-          productApi.getAll(),
-          exportApi.getAll(),
-        ]);
+  const loadData = async (currentPage = 1) => {
+    try {
+      setLoading(true);
+      const [whRes, prodRes, expRes] = await Promise.all([
+        warehouseApi.getAll({ status: "active" }),
+        productApi.getAll(),
+        exportApi.getAll({ page: currentPage, limit: 20 }),
+      ]);
 
-        setWarehouses(whRes.data.data || []);
-        setProducts(prodRes.data?.data || prodRes.data || []);
-        setExports(expRes.data?.data || []);
-      } catch (err) {
-        console.error("Lỗi tải dữ liệu xuất kho:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, []);
+      setWarehouses(whRes.data.data || []);
+      setProducts(prodRes.data?.data || prodRes.data || []);
+      setExports(expRes.data?.data || []);
+      setPagination(expRes.data.pagination || { totalPages: 1, total: 0 });
+    } catch (err) {
+      console.error("Lỗi tải dữ liệu xuất kho:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData(page);
+  }, [page]);
+
+  // Xử lý tự động điền từ trang Tồn kho
+  useEffect(() => {
+    if (location.state?.prefill) {
+      const p = location.state.prefill;
+      setFormData((prev) => ({
+        ...prev,
+        warehouseId: p.warehouseId || prev.warehouseId,
+        items: [
+          {
+            productCode: p.productCode,
+            quantity: 1,
+            unitPrice: p.price || 0,
+            unit: p.unit || "",
+            manufacturingDate: p.manufacturingDate || "",
+            expiryDate: p.expiryDate || "",
+          },
+        ],
+      }));
+    }
+  }, [location.state, products]);
 
   // Cố định kho cho Quản lý kho
   useEffect(() => {
-    if (!isChuKho && user?.warehouseId) {
+    if (!isManager && user?.warehouseId) {
       setFormData((prev) => ({ ...prev, warehouseId: user.warehouseId }));
     }
-  }, [user, isChuKho]);
+  }, [user, isManager]);
 
   // Tính tổng tiền
   useEffect(() => {
@@ -74,12 +109,12 @@ const Export = () => {
 
   // Danh sách kho (chỉ cho Chủ kho)
   const warehouseOptions = useMemo(() => {
-    if (!isChuKho && user?.warehouseId) {
+    if (!isManager && user?.warehouseId) {
       const myWh = warehouses.find((w) => w._id === user.warehouseId);
       return myWh ? [{ value: myWh._id, label: myWh.name }] : [];
     }
     return warehouses.map((w) => ({ value: w._id, label: w.name }));
-  }, [warehouses, user, isChuKho]);
+  }, [warehouses, user, isManager]);
 
   // ==================== CHỈ HIỂN THỊ SẢN PHẨM CÓ TỒN KHO > 0 ====================
   const availableProducts = useMemo(() => {
@@ -213,6 +248,8 @@ const Export = () => {
           quantity: Number(item.quantity),
           unitPrice: Number(item.unitPrice),
           unit: item.unit || "",
+          manufacturingDate: item.manufacturingDate,
+          expiryDate: item.expiryDate,
         })),
       };
 
@@ -223,11 +260,19 @@ const Export = () => {
         );
 
         setFormData({
-          warehouseId: isChuKho ? "" : user?.warehouseId || "",
+          warehouseId: isManager ? "" : user?.warehouseId || "",
           recipient: "",
           recipientType: "khach_hang",
           note: "",
-          items: [{ productCode: "", quantity: 1, unitPrice: 0 }],
+          items: [
+            {
+              productCode: "",
+              quantity: 1,
+              unitPrice: 0,
+              manufacturingDate: "",
+              expiryDate: "",
+            },
+          ],
         });
 
         const fresh = await exportApi.getAll();
@@ -470,7 +515,7 @@ const Export = () => {
                 }
                 placeholder="Chọn kho xuất..."
                 isSearchable
-                isDisabled={!isChuKho}
+                isDisabled={!isManager}
                 className="react-select-container"
                 classNamePrefix="react-select"
               />
@@ -859,6 +904,38 @@ const Export = () => {
             )}
           </tbody>
         </table>
+
+        {/* Bộ điều khiển phân trang */}
+        {!loading && exports.length > 0 && pagination.totalPages > 1 && (
+          <div
+            className="pp-pagination"
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: "20px",
+              marginTop: "20px",
+            }}
+          >
+            <button
+              className="pp-btn pp-btn-ghost"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Trang trước
+            </button>
+            <span style={{ fontWeight: "600", color: "#64748b" }}>
+              Trang {page} / {pagination.totalPages}
+            </span>
+            <button
+              className="pp-btn pp-btn-ghost"
+              disabled={page >= pagination.totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Trang sau
+            </button>
+          </div>
+        )}
       </div>
       {/* Modal Chi tiết phiếu xuất */}
       {detailTarget && (

@@ -5,6 +5,7 @@ const cors = require("cors");
 
 const exportRoutes = require("./routes/export.routes");
 const errorHandler = require("./middlewares/error.middleware");
+const verifyToken = require("./middlewares/auth.middleware"); // Import middleware
 
 const app = express();
 
@@ -21,13 +22,13 @@ app.get("/health", (req, res) => {
 });
 
 // Sử dụng routes cho export
-app.use("/exports", exportRoutes);
+app.use("/exports", verifyToken, exportRoutes);
 
 // Error handling middleware (phải để cuối cùng)
 app.use(errorHandler);
 
-const PORT = process.env.PORT; // ← Đổi port khác với import-service
-const MONGO_URI = process.env.MONGO_URI; // ← Đổi tên database
+const PORT = process.env.PORT;
+const MONGO_URI = process.env.MONGO_URI;
 
 mongoose
   .connect(MONGO_URI)

@@ -3,6 +3,40 @@ import axios from "axios";
 const BASE = "http://localhost:4001";
 const http = axios.create({ baseURL: BASE });
 
+// Thêm Interceptor để đính kèm Token từ localStorage (nếu có)
+http.interceptors.request.use(
+  (config) => {
+    const user = JSON.parse(sessionStorage.getItem("user")); // Đổi sang sessionStorage
+    if (user && user.token) {
+      config.headers.Authorization = `Bearer ${user.token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  },
+);
+
+// Thêm Interceptor để xử lý lỗi phản hồi (hết hạn Token)
+http.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (
+      error.response &&
+      (error.response.status === 401 || error.response.status === 403)
+    ) {
+      console.error("Phiên đăng nhập hết hạn hoặc không hợp lệ.");
+
+      // Xóa thông tin user khỏi localStorage
+      sessionStorage.removeItem("user");
+
+      // Chuyển hướng về trang login (dùng window.location để đảm bảo reset lại toàn bộ state ứng dụng)
+      window.location.href = "/login";
+    }
+    return Promise.reject(error);
+  },
+);
+
 export const productApi = {
   getAll: (params) => http.get("/products", { params }),
   getById: (id) => http.get(`/products/${id}`),
