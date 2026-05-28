@@ -58,7 +58,9 @@ const Import = () => {
       const [supRes, whRes, prodRes, catRes, impRes] = await Promise.all([
         supplierApi.getAll({ status: "active" }),
         warehouseApi.getAll({ status: "active" }),
-        fetch("http://localhost:4001/products").then((r) => r.json()),
+        fetch("http://product-service-production-08db.up.railway.app").then(
+          (r) => r.json(),
+        ),
         productApi.getAllCategories(),
         importApi.getAll({ page: currentPage, limit: 20 }),
       ]);
