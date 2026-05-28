@@ -2,7 +2,8 @@ const Export = require("../models/export.model");
 const ExcelJS = require("exceljs");
 const axios = require("axios");
 
-const PRODUCT_SERVICE_URL = "http://localhost:4001";
+const PRODUCT_SERVICE_URL =
+  process.env.PRODUCT_SERVICE_URL || "http://localhost:4001";
 const WAREHOUSE_SERVICE_URL = "http://localhost:4005";
 
 // ====================== GET ALL ======================

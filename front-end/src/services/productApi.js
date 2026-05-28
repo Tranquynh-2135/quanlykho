@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const BASE = "http://localhost:4001";
+const BASE =
+  process.env.REACT_APP_PRODUCT_SERVICE_URL || "http://localhost:4001";
 const http = axios.create({ baseURL: BASE });
 
 // Thêm Interceptor để đính kèm Token từ localStorage (nếu có)

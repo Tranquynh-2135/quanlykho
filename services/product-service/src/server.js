@@ -40,17 +40,22 @@ app.use(
     ? errorHandler
     : (err, req, res, next) => {
         console.error(err.stack);
-        res
-          .status(err.status || 500)
-          .json({
-            success: false,
-            message: err.message || "Internal Server Error",
-          });
+        res.status(err.status || 500).json({
+          success: false,
+          message: err.message || "Internal Server Error",
+        });
       },
 );
 
-const PORT = process.env.PORT;
-const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI; // ✅ đọc từ .env
+const PORT = process.env.PORT || 4001;
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI;
+
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    credentials: true,
+  }),
+);
 
 if (!MONGO_URI) {
   console.error("❌ MONGO_URI không được định nghĩa trong file .env");

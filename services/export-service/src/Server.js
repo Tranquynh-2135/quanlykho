@@ -12,6 +12,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    credentials: true,
+  }),
+);
+
 // Health check route
 app.get("/health", (req, res) => {
   res.json({
@@ -27,8 +34,8 @@ app.use("/exports", verifyToken, exportRoutes);
 // Error handling middleware (phải để cuối cùng)
 app.use(errorHandler);
 
-const PORT = process.env.PORT;
-const MONGO_URI = process.env.MONGO_URI;
+const PORT = process.env.PORT || 4002;
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI;
 
 mongoose
   .connect(MONGO_URI)

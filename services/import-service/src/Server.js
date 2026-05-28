@@ -19,9 +19,18 @@ app.use("/imports", importRoutes);
 
 app.use(errorHandler);
 
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    credentials: true,
+  }),
+);
+
 const PORT = process.env.PORT || 4003;
 const MONGO_URI =
-  process.env.MONGO_URI || "mongodb://127.0.0.1:27017/import-service";
+  process.env.MONGO_URI ||
+  process.env.MONGODB_URI ||
+  "mongodb://127.0.0.1:27017/import-service";
 
 mongoose
   .connect(MONGO_URI)

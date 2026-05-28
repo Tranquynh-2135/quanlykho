@@ -1,5 +1,8 @@
 import axios from "axios";
-const http = axios.create({ baseURL: "http://localhost:4005" });
+const http = axios.create({
+  baseURL:
+    process.env.REACT_APP_WAREHOUSE_SERVICE_URL || "http://localhost:4005",
+});
 
 // Thêm Interceptor để đính kèm Token
 http.interceptors.request.use(

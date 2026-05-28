@@ -1,7 +1,9 @@
 import axios from "axios";
 
-const productBase = "http://localhost:4001";
-const importBase = "http://localhost:4003";
+const productBase =
+  process.env.REACT_APP_PRODUCT_SERVICE_URL || "http://localhost:4001";
+const importBase =
+  process.env.REACT_APP_IMPORT_SERVICE_URL || "http://localhost:4003";
 
 // Tạo instance có Interceptor hoặc sử dụng lại từ các service khác
 const httpProduct = axios.create({ baseURL: productBase });

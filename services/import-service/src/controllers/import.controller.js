@@ -3,9 +3,12 @@ const mongoose = require("mongoose");
 const ExcelJS = require("exceljs");
 const axios = require("axios");
 
-const PRODUCT_SERVICE_URL = "http://localhost:4001";
-const SUPPLIER_SERVICE_URL = "http://localhost:4004";
-const WAREHOUSE_SERVICE_URL = "http://localhost:4005";
+const PRODUCT_SERVICE_URL =
+  process.env.PRODUCT_SERVICE_URL || "http://localhost:4001";
+const SUPPLIER_SERVICE_URL =
+  process.env.SUPPLIER_SERVICE_URL || "http://localhost:4004";
+const WAREHOUSE_SERVICE_URL =
+  process.env.WAREHOUSE_SERVICE_URL || "http://localhost:4005";
 
 // ====================== GET ALL ======================
 const getAllImports = async (req, res, next) => {

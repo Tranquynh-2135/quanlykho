@@ -1,6 +1,8 @@
 import axios from "axios";
 
-const http = axios.create({ baseURL: "http://localhost:4003" });
+const BASE =
+  process.env.REACT_APP_IMPORT_SERVICE_URL || "http://localhost:4003";
+const http = axios.create({ baseURL: BASE });
 
 // Thêm Interceptor để đính kèm Token
 http.interceptors.request.use(
@@ -34,6 +36,6 @@ export const importApi = {
   delete: (id) => http.delete(`/imports/${id}`),
   getExportUrl: (params) => {
     const query = new URLSearchParams(params).toString();
-    return `http://localhost:4003/imports/export/excel${query ? `?${query}` : ""}`;
+    return `${BASE}/imports/export/excel${query ? `?${query}` : ""}`;
   },
 };
