@@ -2,7 +2,7 @@ import axios from "axios";
 
 const productBase =
   process.env.REACT_APP_PRODUCT_SERVICE_URL ||
-  "product-service-production-08db.up.railway.app";
+  "https://product-service-production-08db.up.railway.app";
 const importBase =
   process.env.REACT_APP_IMPORT_SERVICE_URL ||
   "https://import-service-production-1266.up.railway.app";
@@ -55,10 +55,10 @@ export const dashboardApi = {
 
   // Lấy danh sách sản phẩm tồn thấp (top 5)
   getLowStockProducts: async (limit = 5) => {
-    const res = await axios.get(`${productBase}/products`, {
+    const res = await httpProduct.get("/products", {
       params: { minStock: 999999 }, // backend sẽ lọc stock <= minStock nếu đã hỗ trợ
     });
-    return (res.data.data || res.data)
+    return (res.data?.data || res.data || [])
       .filter((p) => p.stock <= (p.minStock || 10))
       .slice(0, limit);
   },
