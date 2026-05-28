@@ -1,7 +1,8 @@
 import axios from "axios";
 
 const BASE =
-  process.env.REACT_APP_PRODUCT_SERVICE_URL || "http://localhost:4001";
+  process.env.REACT_APP_PRODUCT_SERVICE_URL ||
+  "https://quanlykho-product-service.onrender.com";
 const http = axios.create({ baseURL: BASE });
 
 // Thêm Interceptor để đính kèm Token từ localStorage (nếu có)

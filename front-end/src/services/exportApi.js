@@ -1,7 +1,8 @@
 import axios from "axios";
 
 const BASE =
-  process.env.REACT_APP_EXPORT_SERVICE_URL || "http://localhost:4002";
+  process.env.REACT_APP_EXPORT_SERVICE_URL ||
+  "https://quanlykho-export-service.onrender.com";
 const http = axios.create({ baseURL: BASE });
 
 // Thêm Interceptor để đính kèm Token

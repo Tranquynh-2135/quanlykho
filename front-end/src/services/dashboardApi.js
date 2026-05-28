@@ -1,9 +1,11 @@
 import axios from "axios";
 
 const productBase =
-  process.env.REACT_APP_PRODUCT_SERVICE_URL || "http://localhost:4001";
+  process.env.REACT_APP_PRODUCT_SERVICE_URL ||
+  "https://quanlykho-product-service.onrender.com";
 const importBase =
-  process.env.REACT_APP_IMPORT_SERVICE_URL || "http://localhost:4003";
+  process.env.REACT_APP_IMPORT_SERVICE_URL ||
+  "https://quanlykho-import-service.onrender.com";
 
 // Tạo instance có Interceptor hoặc sử dụng lại từ các service khác
 const httpProduct = axios.create({ baseURL: productBase });
