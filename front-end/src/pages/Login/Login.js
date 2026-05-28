@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { userApi } from "../../services/userApi";
 import "./Login.css";
 
 const Login = () => {
@@ -25,13 +26,8 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:4006/users/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await res.json();
+      const res = await userApi.login(formData);
+      const data = res.data;
 
       if (data.success) {
         login(data.data);
