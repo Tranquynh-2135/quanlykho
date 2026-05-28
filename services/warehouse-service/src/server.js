@@ -7,10 +7,17 @@ const errorHandler = require("./middlewares/error.middleware");
 const app = express();
 app.use(
   cors({
-    origin: [
-      process.env.FRONTEND_URL?.replace(/\/$/, ""),
-      "http://localhost:3000",
-    ].filter(Boolean),
+    origin: function (origin, callback) {
+      const allowed = [
+        process.env.FRONTEND_URL?.replace(/\/$/, ""),
+        "http://localhost:3000",
+      ];
+      if (!origin || allowed.indexOf(origin.replace(/\/$/, "")) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   }),
 );

@@ -58,16 +58,14 @@ const Import = () => {
       const [supRes, whRes, prodRes, catRes, impRes] = await Promise.all([
         supplierApi.getAll({ status: "active" }),
         warehouseApi.getAll({ status: "active" }),
-        fetch("http://product-service-production-08db.up.railway.app").then(
-          (r) => r.json(),
-        ),
+        productApi.getAll(),
         productApi.getAllCategories(),
         importApi.getAll({ page: currentPage, limit: 20 }),
       ]);
 
       setSuppliers(supRes.data.data || []);
       setWarehouses(whRes.data.data || []);
-      setProducts(prodRes.data || prodRes || []);
+      setProducts(prodRes.data?.data || prodRes.data || []);
       setCategories(catRes.data.data || []);
       setImports(impRes.data.data || []);
       setPagination(impRes.data.pagination || { totalPages: 1, total: 0 });
@@ -168,6 +166,13 @@ const Import = () => {
       label: `${p.code} — ${p.name}`,
     }));
   }, [products]);
+
+  const supplierOptions = useMemo(() => {
+    return suppliers.map((s) => ({
+      value: s._id,
+      label: s.name,
+    }));
+  }, [suppliers]);
 
   const supplierFilterOptions = useMemo(() => {
     return [
@@ -856,48 +861,6 @@ const Import = () => {
     };
     window.open(importApi.getExportUrl(params), "_blank");
   };
-
-  const supplierOptions = suppliers.map((s) => ({
-    value: s._id,
-    label: `${s.name}${s.phone ? ` (${s.phone})` : ""}`,
-  }));
-
-  // ==================== TRONG FORM ====================
-  <div className="im-form-group">
-    <label>
-      Kho <span className="required">*</span>
-    </label>
-    <div className="select-with-add">
-      <Select
-        options={warehouseOptions}
-        value={
-          warehouseOptions.find((o) => o.value === formData.warehouseId) || null
-        }
-        onChange={(sel) =>
-          setFormData((p) => ({
-            ...p,
-            warehouseId: sel?.value || "",
-          }))
-        }
-        placeholder="Chọn kho..."
-        isSearchable
-        className="react-select-container"
-        classNamePrefix="react-select"
-        isDisabled={user?.role === "nhan_vien_kho"} // Khóa dropdown
-      />
-
-      {/* Chỉ quản lý kho mới thấy nút + */}
-      {user?.role === "quan_ly_kho" && (
-        <button
-          type="button"
-          className="btn-add-inline"
-          onClick={() => setShowWarehouseModal(true)}
-        >
-          +
-        </button>
-      )}
-    </div>
-  </div>;
 
   if (loading) return <div className="loading">Đang tải dữ liệu...</div>;
 
