@@ -2,7 +2,7 @@ import axios from "axios";
 
 const BASE =
   process.env.REACT_APP_PRODUCT_SERVICE_URL ||
-  "https://quanlykho-product-service.onrender.com";
+  "https://product-service-production-08db.up.railway.app";
 const http = axios.create({ baseURL: BASE });
 
 // Thêm Interceptor để đính kèm Token từ localStorage (nếu có)

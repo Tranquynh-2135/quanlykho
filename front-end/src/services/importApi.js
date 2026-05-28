@@ -2,7 +2,7 @@ import axios from "axios";
 
 const BASE =
   process.env.REACT_APP_IMPORT_SERVICE_URL ||
-  "https://quanlykho-import-service.onrender.com";
+  "https://import-service-production-1266.up.railway.app";
 const http = axios.create({ baseURL: BASE });
 
 // Thêm Interceptor để đính kèm Token

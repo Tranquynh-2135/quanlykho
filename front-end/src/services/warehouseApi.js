@@ -2,7 +2,7 @@ import axios from "axios";
 const http = axios.create({
   baseURL:
     process.env.REACT_APP_WAREHOUSE_SERVICE_URL ||
-    "https://quanlykho-warehouse-service.onrender.com",
+    "https://warehouse-service-production-f3e0.up.railway.app",
 });
 
 // Thêm Interceptor để đính kèm Token

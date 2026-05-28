@@ -2,10 +2,10 @@ import axios from "axios";
 
 const productBase =
   process.env.REACT_APP_PRODUCT_SERVICE_URL ||
-  "https://quanlykho-product-service.onrender.com";
+  "product-service-production-08db.up.railway.app";
 const importBase =
   process.env.REACT_APP_IMPORT_SERVICE_URL ||
-  "https://quanlykho-import-service.onrender.com";
+  "https://import-service-production-1266.up.railway.app";
 
 // Tạo instance có Interceptor hoặc sử dụng lại từ các service khác
 const httpProduct = axios.create({ baseURL: productBase });
