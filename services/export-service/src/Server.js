@@ -9,15 +9,16 @@ const verifyToken = require("./middlewares/auth.middleware"); // Import middlewa
 
 const app = express();
 
-app.use(cors());
-app.use(express.json());
-
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: [
+      process.env.FRONTEND_URL?.replace(/\/$/, ""),
+      "http://localhost:3000",
+    ].filter(Boolean),
     credentials: true,
   }),
 );
+app.use(express.json());
 
 // Health check route
 app.get("/health", (req, res) => {

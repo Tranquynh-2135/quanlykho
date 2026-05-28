@@ -8,7 +8,15 @@ const errorHandler = require("./middlewares/error.middleware");
 
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      process.env.FRONTEND_URL?.replace(/\/$/, ""),
+      "http://localhost:3000",
+    ].filter(Boolean),
+    credentials: true,
+  }),
+);
 app.use(express.json());
 
 app.get("/health", (req, res) => {
@@ -18,13 +26,6 @@ app.get("/health", (req, res) => {
 app.use("/imports", importRoutes);
 
 app.use(errorHandler);
-
-app.use(
-  cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
-    credentials: true,
-  }),
-);
 
 const PORT = process.env.PORT || 4003;
 const MONGO_URI =

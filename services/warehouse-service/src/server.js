@@ -5,7 +5,15 @@ const cors = require("cors");
 const errorHandler = require("./middlewares/error.middleware");
 
 const app = express();
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      process.env.FRONTEND_URL?.replace(/\/$/, ""),
+      "http://localhost:3000",
+    ].filter(Boolean),
+    credentials: true,
+  }),
+);
 app.use(express.json());
 
 app.get("/health", (req, res) =>
@@ -16,13 +24,6 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 4005;
 const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI;
-
-app.use(
-  cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
-    credentials: true,
-  }),
-);
 
 if (!MONGO_URI) {
   console.error("❌ MONGO_URI chưa được định nghĩa");
