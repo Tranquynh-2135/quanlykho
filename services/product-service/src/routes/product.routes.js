@@ -5,7 +5,7 @@ const path = require("path");
 const { hashFileName } = require("../utils/product.hashFile");
 
 const ctrl = require("../controllers/product.controller");
-const categoryCtrl = require("../controllers/category.controller"); // ← ĐÃ THÊM
+const categoryCtrl = require("../controllers/category.controller");
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, "uploads/"),
