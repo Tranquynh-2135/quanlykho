@@ -4,7 +4,8 @@ const axios = require("axios");
 
 const PRODUCT_SERVICE_URL =
   process.env.PRODUCT_SERVICE_URL || "http://localhost:4001";
-const WAREHOUSE_SERVICE_URL = "http://localhost:4005";
+const WAREHOUSE_SERVICE_URL =
+  process.env.WAREHOUSE_SERVICE_URL || "http://localhost:4005";
 
 // ====================== GET ALL ======================
 const getAllExports = async (req, res, next) => {
@@ -80,6 +81,8 @@ const createExport = async (req, res, next) => {
         unitPrice: Number(item.unitPrice || 0),
         unit: item.unit?.trim() || "",
         totalPrice,
+        manufacturingDate: item.manufacturingDate,
+        expiryDate: item.expiryDate,
       };
     });
 
@@ -164,6 +167,8 @@ const deleteExport = async (req, res, next) => {
           {
             quantity: item.quantity, // Truyền số dương để cộng lại
             warehouseId: exportDoc.warehouseId,
+            manufacturingDate: item.manufacturingDate,
+            expiryDate: item.expiryDate,
           },
         );
       } catch (err) {

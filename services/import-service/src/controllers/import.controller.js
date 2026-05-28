@@ -121,28 +121,21 @@ const createImport = async (req, res, next) => {
     // === TĂNG STOCK ===
     // === TĂNG STOCK VỚI BATCH ===
     for (const item of processedItems) {
-      try {
-        await axios.patch(
-          `${PRODUCT_SERVICE_URL}/products/increase-stock/${item.productCode}`,
-          {
-            quantity: item.quantity,
-            warehouseId: savedImport.warehouseId,
-            unit: item.unit || "",
-            manufacturingDate: item.manufacturingDate,
-            expiryDate: item.expiryDate,
-          },
-          axiosConfig,
-        );
+      await axios.patch(
+        `${PRODUCT_SERVICE_URL}/products/increase-stock/${item.productCode}`,
+        {
+          quantity: item.quantity,
+          warehouseId: savedImport.warehouseId,
+          unit: item.unit || "",
+          manufacturingDate: item.manufacturingDate,
+          expiryDate: item.expiryDate,
+        },
+        axiosConfig,
+      );
 
-        console.log(
-          `✅ Cập nhật stock thành công cho ${item.productCode} | Số lượng: ${item.quantity}`,
-        );
-      } catch (err) {
-        console.error(
-          `❌ Không tăng stock cho ${item.productCode}:`,
-          err.response?.data?.message || err.message,
-        );
-      }
+      console.log(
+        `✅ Cập nhật stock thành công cho ${item.productCode} | Số lượng: ${item.quantity}`,
+      );
     }
 
     res.status(201).json({
@@ -176,6 +169,8 @@ const deleteImport = async (req, res, next) => {
           {
             quantity: -item.quantity, // Trừ tồn kho
             warehouseId: importDoc.warehouseId,
+            manufacturingDate: item.manufacturingDate,
+            expiryDate: item.expiryDate,
           }, // Trừ tồn kho chính xác theo lô
         );
       } catch (err) {
