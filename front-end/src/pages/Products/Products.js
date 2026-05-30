@@ -27,6 +27,7 @@ const Products = () => {
   const [deleting, setDeleting] = useState(false);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [currentHash, setCurrentHash] = useState("");
@@ -45,6 +46,7 @@ const Products = () => {
       const res = await productApi.getAll({
         ...(search && { search }),
         ...(filterStatus && { status: filterStatus }),
+        ...(filterCategory && { categoryId: filterCategory }),
         page,
         limit: 24,
       });
@@ -56,12 +58,12 @@ const Products = () => {
     } finally {
       setLoading(false);
     }
-  }, [search, filterStatus, page]);
+  }, [search, filterStatus, filterCategory, page]);
 
   // Reset về trang 1 khi tìm kiếm hoặc lọc
   useEffect(() => {
     setPage(1);
-  }, [search, filterStatus]);
+  }, [search, filterStatus, filterCategory]);
 
   useEffect(() => {
     fetchProducts();
@@ -196,6 +198,18 @@ const Products = () => {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        <select
+          className="pp-select"
+          value={filterCategory}
+          onChange={(e) => setFilterCategory(e.target.value)}
+        >
+          <option value="">Tất cả danh mục</option>
+          {categories.map((cat) => (
+            <option key={cat._id} value={cat._id}>
+              {cat.name}
+            </option>
+          ))}
+        </select>
         <select
           className="pp-select"
           value={filterStatus}

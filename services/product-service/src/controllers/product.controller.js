@@ -26,7 +26,14 @@ const validateProductDates = (manufacturingDate, expiryDate) => {
 // GET ALL
 const getAllProducts = async (req, res, next) => {
   try {
-    const { page = 1, limit = 24, search, status, warehouseId } = req.query;
+    const {
+      page = 1,
+      limit = 24,
+      search,
+      status,
+      warehouseId,
+      categoryId,
+    } = req.query;
     const query = {};
 
     if (search) {
@@ -36,6 +43,7 @@ const getAllProducts = async (req, res, next) => {
       ];
     }
     if (status) query.status = status;
+    if (categoryId) query.categoryId = categoryId;
 
     // Lọc theo kho nếu có warehouseId
     if (warehouseId) {
