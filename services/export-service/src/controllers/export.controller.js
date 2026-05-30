@@ -103,19 +103,31 @@ const createExport = async (req, res, next) => {
         `🚀 Trừ kho: ${pCode} (-${item.quantity}) tại kho ${warehouseId}`,
       );
 
-      const resStock = await axios.patch(
-        `${PRODUCT_SERVICE_URL}/products/increase-stock/${pCode}`,
-        {
-          quantity: -item.quantity,
-          warehouseId: warehouseId,
-          manufacturingDate: item.manufacturingDate,
-          expiryDate: item.expiryDate,
-        },
-        axiosConfig,
-      );
+      try {
+        const resStock = await axios.patch(
+          `${PRODUCT_SERVICE_URL}/products/increase-stock/${pCode}`,
+          {
+            quantity: -item.quantity,
+            warehouseId: warehouseId,
+            manufacturingDate: item.manufacturingDate,
+            expiryDate: item.expiryDate,
+          },
+          axiosConfig,
+        );
 
-      if (!resStock.data?.success) {
-        throw new Error(`Lỗi trừ kho sản phẩm ${pCode}`);
+        if (!resStock.data?.success) {
+          throw new Error(
+            resStock.data?.message || `Lỗi trừ kho sản phẩm ${pCode}`,
+          );
+        }
+      } catch (axiosErr) {
+        console.error(
+          `❌ Lỗi kết nối đến Product Service (${PRODUCT_SERVICE_URL}):`,
+          axiosErr.message,
+        );
+        throw new Error(
+          `Không thể kết nối đến Product Service để trừ tồn kho cho ${pCode}.`,
+        );
       }
     }
 

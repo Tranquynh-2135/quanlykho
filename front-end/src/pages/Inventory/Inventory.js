@@ -249,7 +249,7 @@ const Inventory = () => {
         name: product.name,
         unit: product.unit,
         price: product.price,
-        costPrice: product.costPrice,
+        costPrice: batch.costPrice || product.costPrice || 0,
         manufacturingDate: batch.manufacturingDate
           ? new Date(batch.manufacturingDate).toISOString().split("T")[0]
           : "",
@@ -581,6 +581,7 @@ const Inventory = () => {
                     <th>NSX</th>
                     <th>HSD</th>
                     <th>Kho</th>
+                    <th>Giá vốn</th>
                     <th>Số lượng</th>
                     <th>Đơn vị</th>
                     <th>Thao tác</th>
@@ -656,6 +657,12 @@ const Inventory = () => {
                               </td>
                             )}
                             <td>{wh?.name || "Không xác định"}</td>
+                            <td style={{ color: "#64748b" }}>
+                              {Number(batch.costPrice || 0).toLocaleString(
+                                "vi-VN",
+                              )}{" "}
+                              ₫
+                            </td>
                             <td
                               style={{ fontWeight: "bold", color: "#15803d" }}
                             >

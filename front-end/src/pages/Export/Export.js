@@ -82,6 +82,7 @@ const Export = () => {
             productCode: p.productCode,
             quantity: 1,
             unitPrice: p.price || 0,
+            costPrice: p.costPrice || 0,
             unit: p.unit || "",
             manufacturingDate: p.manufacturingDate || "",
             expiryDate: p.expiryDate || "",
@@ -149,6 +150,7 @@ const Export = () => {
         stock: stockInfo?.quantity || 0,
         unit: p.unit || "",
         price: p.price || 0,
+        costPrice: p.costPrice || 0,
       };
     });
   }, [availableProducts, formData.warehouseId]);
@@ -208,6 +210,7 @@ const Export = () => {
           (s) => s.warehouseId === formData.warehouseId,
         );
         newItems[index].unitPrice = selected.price || 0;
+        newItems[index].costPrice = selected.costPrice || 0;
         newItems[index].unit = selected.unit || "";
         if (newItems[index].quantity > (stockInfo?.quantity || 0)) {
           newItems[index].quantity = stockInfo?.quantity || 1;
@@ -569,6 +572,7 @@ const Export = () => {
                     <th style={{ minWidth: 100 }}>Số lượng</th>
                     <th style={{ minWidth: 130 }}>Đơn vị tính</th>{" "}
                     {/* ← Thêm cột này */}
+                    <th style={{ minWidth: 160 }}>Giá vốn (₫)</th>
                     <th style={{ minWidth: 160 }}>Giá bán (₫)</th>
                     <th style={{ minWidth: 130 }}>Thành tiền</th>
                     <th style={{ minWidth: 60 }}></th>
@@ -646,6 +650,22 @@ const Export = () => {
                             }
                             placeholder="chai, thùng, kg..."
                             style={{ textAlign: "center" }}
+                          />
+                        </td>
+
+                        <td>
+                          <input
+                            type="text"
+                            value={Number(item.costPrice || 0).toLocaleString(
+                              "vi-VN",
+                            )}
+                            readOnly
+                            style={{
+                              textAlign: "right",
+                              background: "#f8fafc",
+                              color: "#64748b",
+                              fontWeight: "bold",
+                            }}
                           />
                         </td>
 

@@ -91,7 +91,7 @@ const Import = () => {
           {
             productCode: p.productCode,
             quantity: 1,
-            unitPrice: p.costPrice || 0,
+            unitPrice: Number(p.costPrice || 0),
             unit: p.unit || "",
             manufacturingDate: p.manufacturingDate || "",
             expiryDate: p.expiryDate || "",

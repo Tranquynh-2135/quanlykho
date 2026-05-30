@@ -121,17 +121,31 @@ const createImport = async (req, res, next) => {
     // === TĂNG STOCK ===
     // === TĂNG STOCK VỚI BATCH ===
     for (const item of processedItems) {
-      await axios.patch(
-        `${PRODUCT_SERVICE_URL}/products/increase-stock/${item.productCode}`,
-        {
-          quantity: item.quantity,
-          warehouseId: savedImport.warehouseId,
-          unit: item.unit || "",
-          manufacturingDate: item.manufacturingDate,
-          expiryDate: item.expiryDate,
-        },
-        axiosConfig,
-      );
+      try {
+        const url = `${PRODUCT_SERVICE_URL}/products/increase-stock/${item.productCode}`;
+        await axios.patch(
+          url,
+          {
+            quantity: item.quantity,
+            warehouseId: savedImport.warehouseId,
+            unit: item.unit || "",
+            manufacturingDate: item.manufacturingDate,
+            expiryDate: item.expiryDate,
+            costPrice: item.unitPrice, // Truyền giá vốn nhập vào
+          },
+          axiosConfig,
+        );
+      } catch (axiosErr) {
+        console.error(
+          `❌ Lỗi gọi Product Service tại URL: ${PRODUCT_SERVICE_URL}`,
+        );
+        console.error(
+          `Chi tiết lỗi: ${axiosErr.response?.data?.message || axiosErr.message}`,
+        );
+        throw new Error(
+          `Không thể cập nhật tồn kho cho sản phẩm ${item.productCode}. Vui lòng kiểm tra cấu hình PRODUCT_SERVICE_URL.`,
+        );
+      }
 
       console.log(
         `✅ Cập nhật stock thành công cho ${item.productCode} | Số lượng: ${item.quantity}`,

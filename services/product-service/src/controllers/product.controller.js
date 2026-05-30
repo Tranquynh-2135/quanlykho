@@ -157,8 +157,14 @@ const uploadImage = (req, res) => {
 // ====================== INCREASE / DECREASE STOCK ======================
 const increaseStock = async (req, res, next) => {
   try {
-    const { quantity, manufacturingDate, expiryDate, warehouseId, unit } =
-      req.body;
+    const {
+      quantity,
+      manufacturingDate,
+      expiryDate,
+      warehouseId,
+      unit,
+      costPrice,
+    } = req.body;
     const numQuantity = Number(quantity);
 
     if (!warehouseId) {
@@ -173,7 +179,7 @@ const increaseStock = async (req, res, next) => {
     }
 
     console.log(
-      `📥 Nhập ${numQuantity} ${req.params.code} vào kho ${warehouseId}`,
+      `📥 Nhập ${numQuantity} ${req.params.code} vào kho ${warehouseId} | Giá vốn: ${costPrice}`,
     );
 
     let product = await Product.findOne({ code: req.params.code });
@@ -225,12 +231,18 @@ const increaseStock = async (req, res, next) => {
           manufacturingDate:
             mfgDate && !isNaN(mfgDate.getTime()) ? mfgDate : null,
           expiryDate: expDate && !isNaN(expDate.getTime()) ? expDate : null,
+          costPrice: numQuantity > 0 ? Number(costPrice) : 0,
           stocks: [{ warehouseId, quantity: numQuantity }],
         };
         product.batches.push(batch);
       }
     } else {
       // Nếu tìm thấy lô hàng -> Cập nhật số lượng trong lô đó
+      // Nếu là nhập hàng (quantity > 0), cập nhật giá vốn mới nhất cho lô này
+      if (numQuantity > 0 && costPrice !== undefined && costPrice !== null) {
+        batch.costPrice = Number(costPrice);
+      }
+
       const bWhIndex = batch.stocks.findIndex(
         (s) => s.warehouseId.toString() === warehouseId.toString(),
       );
@@ -275,6 +287,15 @@ const increaseStock = async (req, res, next) => {
       product.manufacturingDate = new Date(manufacturingDate);
     if (expiryDate) product.expiryDate = new Date(expiryDate);
     if (unit) product.unit = unit;
+
+    // Cập nhật giá vốn chung của sản phẩm là giá vốn nhập gần nhất
+    if (numQuantity > 0 && costPrice !== undefined && costPrice !== null) {
+      product.costPrice = Number(costPrice);
+    }
+
+    // Quan trọng: Báo cho Mongoose biết các mảng đã thay đổi để thực hiện lưu xuống DB
+    product.markModified("batches");
+    product.markModified("stocks");
 
     await product.save();
 
