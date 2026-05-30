@@ -43,14 +43,14 @@ const Dashboard = () => {
       const [importRes, exportRes, productRes, warehouseRes] =
         await Promise.all([
           importApi.getAll({ limit: 1000 }), // Tăng limit để thống kê chính xác
-          exportApi.getAll(),
-          productApi.getAll({ status: "active", limit: 1000 }),
+          exportApi.getAll({ limit: 1000 }),
+          productApi.getAll({ status: "active", limit: 1000 }), // Khớp với Inventory
           warehouseApi.getAll(),
         ]);
 
       let imports = importRes.data?.data || [];
       let exports = exportRes.data?.data || [];
-      const products = productRes.data?.data || [];
+      const products = productRes.data?.data || productRes.data || [];
       const whList = warehouseRes.data?.data || [];
       setWarehouses(whList);
 
@@ -110,31 +110,64 @@ const Dashboard = () => {
           todayImportsCount++;
       });
 
-      // ==================== TÍNH CẢNH BÁO TỒN KHO & HSD ====================
-      let totalLowStockCount = 0;
-      let totalExpiringSoonCount = 0;
-      const expiringSoonList = [];
-
+      // ==================== LOGIC LÀM PHẲNG DỮ LIỆU (GIỐNG INVENTORY) ====================
+      let flattenedStockItems = [];
       products.forEach((p) => {
-        const stockAtWh = getStockAtWarehouse(p, filterId);
-        if (stockAtWh > 0 && stockAtWh <= (p.minStock || 10)) {
-          totalLowStockCount++;
+        if (filterId) {
+          const qty = getStockAtWarehouse(p, filterId);
+          if (qty > 0) {
+            flattenedStockItems.push({
+              ...p,
+              currentWhId: filterId,
+              currentQty: qty,
+            });
+          }
+        } else {
+          if (p.stocks && Array.isArray(p.stocks)) {
+            p.stocks.forEach((s) => {
+              if (s.quantity > 0) {
+                flattenedStockItems.push({
+                  ...p,
+                  currentWhId: s.warehouseId,
+                  currentQty: s.quantity,
+                });
+              }
+            });
+          } else if (p.stock > 0) {
+            flattenedStockItems.push({
+              ...p,
+              currentWhId: p.warehouseId,
+              currentQty: p.stock,
+            });
+          }
         }
+      });
 
-        if (p.batches && Array.isArray(p.batches)) {
-          const expBatch = p.batches.find((b) => {
+      // ==================== TÍNH TOÁN DỰA TRÊN DỮ LIỆU ĐÃ LÀM PHẲNG ====================
+      // 1. Tồn kho thấp
+      const lowStockList = flattenedStockItems.filter(
+        (item) => item.currentQty <= (item.minStock || 10),
+      );
+
+      // 2. Sắp hết hạn
+      const expiringSoonList = [];
+      flattenedStockItems.forEach((item) => {
+        if (item.batches && Array.isArray(item.batches)) {
+          const worstBatch = item.batches.find((b) => {
             const hasStock = b.stocks?.some(
               (s) =>
-                (!filterId || String(s.warehouseId) === String(filterId)) &&
+                String(s.warehouseId) === String(item.currentWhId) &&
                 s.quantity > 0,
             );
             if (!hasStock || !b.expiryDate) return false;
-            const exp = getExpiryInfo(b.expiryDate);
-            return exp && exp.daysLeft <= 30;
+            const info = getExpiryInfo(b.expiryDate);
+            return info && info.daysLeft <= 30;
           });
-          if (expBatch) {
-            totalExpiringSoonCount++;
-            expiringSoonList.push({ ...p, earliestExp: expBatch.expiryDate });
+          if (worstBatch) {
+            expiringSoonList.push({
+              ...item,
+              earliestExp: worstBatch.expiryDate,
+            });
           }
         }
       });
@@ -147,22 +180,13 @@ const Dashboard = () => {
         todayImports: todayImportsCount,
         todayExports: todayExportsCount,
         totalProducts: products.length,
-        lowStockCount: totalLowStockCount,
-        expiringSoonCount: totalExpiringSoonCount,
+        lowStockCount: lowStockList.length,
+        expiringSoonCount: expiringSoonList.length,
       });
 
       setRecentImports(imports.slice(0, 5));
       setRecentExports(exports.slice(0, 5));
-
-      // ==================== SẢN PHẨM TỒN THẤP ====================
-      const lowStock = products
-        .filter((p) => {
-          // Tính tồn dựa trên kho đang lọc
-          const stockAtWh = getStockAtWarehouse(p, filterId);
-          return stockAtWh > 0 && stockAtWh <= (p.minStock || 10); // Consistent with Inventory.js
-        })
-        .slice(0, 6);
-      setLowStockProducts(lowStock);
+      setLowStockProducts(lowStockList.slice(0, 6));
       setExpiringProducts(expiringSoonList.slice(0, 6));
     } catch (err) {
       console.error("Lỗi tải dashboard:", err);
@@ -381,12 +405,11 @@ const Dashboard = () => {
               lowStockProducts.map((p) => (
                 <div key={p._id} className="low-stock-row">
                   <strong>{p.code}</strong> - {p.name}
+                  <small style={{ color: "#64748b", marginLeft: "5px" }}>
+                    ({warehouses.find((w) => w._id === p.currentWhId)?.name})
+                  </small>
                   <span style={{ color: "#ef4444", float: "right" }}>
-                    {getStockAtWarehouse(
-                      p,
-                      isQuanLyKho() ? selectedWarehouse : warehouseId,
-                    )}{" "}
-                    / {p.minStock || 10}
+                    {p.currentQty} / {p.minStock || 10}
                   </span>
                 </div>
               ))
@@ -432,7 +455,12 @@ const Dashboard = () => {
 
 // Helper function
 const getStockAtWarehouse = (product, warehouseId) => {
-  if (product.stocks && Array.isArray(product.stocks)) {
+  // 1. Ưu tiên dữ liệu mới (mảng stocks)
+  if (
+    product.stocks &&
+    Array.isArray(product.stocks) &&
+    product.stocks.length > 0
+  ) {
     if (!warehouseId) {
       // Nếu không lọc kho -> tính tổng tất cả kho
       return product.stocks.reduce((sum, s) => sum + (s.quantity || 0), 0);
@@ -443,7 +471,15 @@ const getStockAtWarehouse = (product, warehouseId) => {
     );
     return stockEntry ? stockEntry.quantity : 0;
   }
-  return 0;
+
+  // 2. Fallback cho dữ liệu cũ (warehouseId và stock đơn lẻ trên product)
+  if (warehouseId && product.warehouseId) {
+    return String(product.warehouseId) === String(warehouseId)
+      ? product.stock || 0
+      : 0;
+  }
+
+  return product.stock || 0;
 };
 
 export default Dashboard;

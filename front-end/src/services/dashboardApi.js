@@ -33,11 +33,16 @@ export const dashboardApi = {
     const products = productsRes.data.data || productsRes.data;
     const imports = importsRes.data.data || importsRes.data;
 
+    const calculateStock = (p) =>
+      p.stocks?.reduce((sum, s) => sum + (s.quantity || 0), 0) || p.stock || 0;
+
     // Tính toán
     const totalProducts = products.length;
-    const lowStock = products.filter(
-      (p) => p.stock <= (p.minStock || 10),
-    ).length;
+    const lowStock = products.filter((p) => {
+      const stockValue = calculateStock(p);
+      // Chỉ tính tồn thấp nếu sản phẩm thực sự đang có hàng trong kho
+      return stockValue > 0 && stockValue <= (p.minStock || 10);
+    }).length;
 
     // Phiếu nhập hôm nay
     const today = new Date().toISOString().split("T")[0];
@@ -49,17 +54,25 @@ export const dashboardApi = {
       totalProducts,
       lowStock,
       todayImports,
-      totalValue: products.reduce((sum, p) => sum + p.price * p.stock, 0), // giá trị tồn kho theo giá bán
+      totalValue: products.reduce(
+        (sum, p) => sum + (p.price || 0) * calculateStock(p),
+        0,
+      ),
     };
   },
 
   // Lấy danh sách sản phẩm tồn thấp (top 5)
   getLowStockProducts: async (limit = 5) => {
-    const res = await httpProduct.get("/products", {
-      params: { minStock: 999999 }, // backend sẽ lọc stock <= minStock nếu đã hỗ trợ
-    });
+    const res = await httpProduct.get("/products", { params: { limit: 1000 } });
+    const calculateStock = (p) =>
+      p.stocks?.reduce((sum, s) => sum + (s.quantity || 0), 0) || p.stock || 0;
+
     return (res.data?.data || res.data || [])
-      .filter((p) => p.stock <= (p.minStock || 10))
+      .filter((p) => {
+        const stockValue = calculateStock(p);
+        // Loại bỏ các sản phẩm tồn bằng 0
+        return stockValue > 0 && stockValue <= (p.minStock || 10);
+      })
       .slice(0, limit);
   },
 };
