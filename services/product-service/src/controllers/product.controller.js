@@ -208,15 +208,15 @@ const increaseStock = async (req, res, next) => {
     const mfgKey = normalizeDate(manufacturingDate);
     const expKey = normalizeDate(expiryDate);
 
-    // Tìm lô hàng có cùng NSX và HSD
-    let batch = product.batches.find((b) => {
+    // Tìm index của lô hàng có cùng NSX và HSD
+    const batchIndex = product.batches.findIndex((b) => {
       return (
         normalizeDate(b.manufacturingDate) === mfgKey &&
         normalizeDate(b.expiryDate) === expKey
       );
     });
 
-    if (!batch) {
+    if (batchIndex === -1) {
       // Nếu không tìm thấy và là nhập kho (quantity > 0) -> Tạo lô mới
       if (numQuantity > 0) {
         const mfgDate = manufacturingDate ? new Date(manufacturingDate) : null;
@@ -226,37 +226,33 @@ const increaseStock = async (req, res, next) => {
           (max, b) => Math.max(max, b.batchNo || 0),
           0,
         );
-        batch = {
+        const newBatch = {
           batchNo: maxBatchNo + 1,
           manufacturingDate:
             mfgDate && !isNaN(mfgDate.getTime()) ? mfgDate : null,
           expiryDate: expDate && !isNaN(expDate.getTime()) ? expDate : null,
-          costPrice: numQuantity > 0 ? Number(costPrice) : 0,
+          costPrice: numQuantity > 0 ? Number(costPrice || 0) : 0,
           stocks: [{ warehouseId, quantity: numQuantity }],
         };
-        product.batches.push(batch);
+        product.batches.push(newBatch);
       }
     } else {
       // Nếu tìm thấy lô hàng -> Cập nhật số lượng trong lô đó
-      // Nếu là nhập hàng (quantity > 0), cập nhật giá vốn mới nhất cho lô này
-      if (numQuantity > 0 && costPrice !== undefined && costPrice !== null) {
-        batch.costPrice = Number(costPrice);
+      const currentBatch = product.batches[batchIndex];
+
+      if (numQuantity > 0 && costPrice != null) {
+        currentBatch.costPrice = Number(costPrice);
       }
 
-      const bWhIndex = batch.stocks.findIndex(
+      const bWhIndex = currentBatch.stocks.findIndex(
         (s) => s.warehouseId.toString() === warehouseId.toString(),
       );
       if (bWhIndex !== -1) {
-        batch.stocks[bWhIndex].quantity += numQuantity;
+        currentBatch.stocks[bWhIndex].quantity += numQuantity;
       } else {
         if (numQuantity > 0) {
-          batch.stocks.push({ warehouseId, quantity: numQuantity });
+          currentBatch.stocks.push({ warehouseId, quantity: numQuantity });
         }
-      }
-
-      // Xóa lô nếu số lượng về 0 (tùy chọn)
-      if (batch.stocks.every((s) => s.quantity <= 0)) {
-        // Có thể giữ lại để lưu lịch sử hoặc xóa
       }
     }
 
@@ -289,7 +285,7 @@ const increaseStock = async (req, res, next) => {
     if (unit) product.unit = unit;
 
     // Cập nhật giá vốn chung của sản phẩm là giá vốn nhập gần nhất
-    if (numQuantity > 0 && costPrice !== undefined && costPrice !== null) {
+    if (numQuantity > 0 && costPrice != null) {
       product.costPrice = Number(costPrice);
     }
 

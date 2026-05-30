@@ -230,8 +230,7 @@ const Import = () => {
     if (field === "productCode" && value) {
       const selected = products.find((p) => p.code === value);
       if (selected) {
-        newItems[index].unitPrice =
-          selected.averageCost || selected.costPrice || 0;
+        newItems[index].unitPrice = Number(selected.costPrice || 0);
         newItems[index].unit = selected.unit || "";
       }
       // newItems[index].batchCode = ""; // Reset lô khi đổi SP - Đã xóa batch
