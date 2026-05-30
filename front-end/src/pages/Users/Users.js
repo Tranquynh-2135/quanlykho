@@ -204,6 +204,7 @@ const Users = () => {
                 <thead>
                   <tr>
                     <th>Tài khoản</th>
+                    <th>Họ tên</th>
                     <th>Mật khẩu</th>
                     <th>Vai trò</th>
                     <th>Thao tác</th>
@@ -214,6 +215,7 @@ const Users = () => {
                     <td>
                       <strong>{quanLyKhoUser.username}</strong>
                     </td>
+                    <td>{quanLyKhoUser.name}</td>
                     <td style={{ fontFamily: "monospace", color: "#ef4444" }}>
                       {quanLyKhoUser.password || "••••••"}
                     </td>
@@ -254,6 +256,7 @@ const Users = () => {
               <thead>
                 <tr>
                   <th>Tài khoản</th>
+                  <th>Tên nhân viên</th>
                   <th>Mật khẩu</th>
                   <th>Kho làm việc</th>
                   <th>Thao tác</th>
@@ -269,6 +272,7 @@ const Users = () => {
                       <td>
                         <strong>{u.username}</strong>
                       </td>
+                      <td>{u.name}</td>
                       <td style={{ fontFamily: "monospace", color: "#ef4444" }}>
                         {u.password || "••••••"}
                       </td>
