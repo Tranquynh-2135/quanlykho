@@ -33,10 +33,7 @@ export const AuthProvider = ({ children }) => {
       processedUser.fullName =
         userData.name || userData.fullName || "Quản lý kho";
     } else if (userData.role === "nhan_vien_kho") {
-      processedUser.warehouseName =
-        userData.warehouseName ||
-        userData.name?.replace("Nhân viên ", "") ||
-        "Chưa gán";
+      processedUser.warehouseName = userData.warehouseName || "Chưa gán";
 
       processedUser.fullName =
         userData.name || userData.fullName || "Nhân viên kho";

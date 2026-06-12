@@ -1,5 +1,9 @@
 const User = require("../models/user.model");
 const jwt = require("jsonwebtoken");
+const axios = require("axios");
+
+const WAREHOUSE_SERVICE_URL =
+  process.env.WAREHOUSE_SERVICE_URL || "http://localhost:4005";
 
 // GET ALL
 const getAll = async (req, res, next) => {
@@ -168,6 +172,19 @@ const login = async (req, res, next) => {
 
     const { password: hashed, plainPassword, ...userData } = user.toObject();
 
+    // Lấy tên kho nếu là nhân viên kho
+    let warehouseName = null;
+    if (user.role === "nhan_vien_kho" && user.warehouseId) {
+      try {
+        const whRes = await axios.get(
+          `${WAREHOUSE_SERVICE_URL}/warehouses/${user.warehouseId}`,
+        );
+        warehouseName = whRes.data?.data?.name;
+      } catch (err) {
+        console.error("⚠️ Không thể lấy tên kho từ warehouse-service");
+      }
+    }
+
     // Tạo JWT Token
     const token = jwt.sign(
       { _id: user._id, role: user.role, warehouseId: user.warehouseId },
@@ -177,7 +194,7 @@ const login = async (req, res, next) => {
 
     res.json({
       success: true,
-      data: { ...userData, token }, // Trả về userData kèm theo token
+      data: { ...userData, warehouseName, token }, // Trả về userData kèm theo warehouseName và token
       message: "Đăng nhập thành công",
     });
   } catch (err) {
