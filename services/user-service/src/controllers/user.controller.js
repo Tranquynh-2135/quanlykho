@@ -3,7 +3,8 @@ const jwt = require("jsonwebtoken");
 const axios = require("axios");
 
 const WAREHOUSE_SERVICE_URL =
-  process.env.WAREHOUSE_SERVICE_URL || "http://localhost:4005";
+  process.env.WAREHOUSE_SERVICE_URL ||
+  "http://warehouse-service-production-f3e0.up.railway.app";
 
 // GET ALL
 const getAll = async (req, res, next) => {
