@@ -112,6 +112,7 @@ const Import = () => {
   useEffect(() => {
     if (user?.role === "nhan_vien_kho" && user.warehouseId) {
       setFormData((prev) => ({ ...prev, warehouseId: user.warehouseId }));
+      setExportWarehouseId(user.warehouseId);
     }
   }, [user]);
 
@@ -1247,6 +1248,7 @@ const Import = () => {
               isSearchable
               className="react-select-container"
               classNamePrefix="react-select"
+              isDisabled={user?.role === "nhan_vien_kho"}
               styles={{
                 control: (base) => ({
                   ...base,
@@ -1291,7 +1293,7 @@ const Import = () => {
                 setExportStartDate("");
                 setExportEndDate("");
                 setExportSupplierId("");
-                setExportWarehouseId("");
+                if (user?.role !== "nhan_vien_kho") setExportWarehouseId("");
                 setExportProductCode("");
               }}
             >

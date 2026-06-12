@@ -102,6 +102,7 @@ const Export = () => {
   useEffect(() => {
     if (!isManager && user?.warehouseId) {
       setFormData((prev) => ({ ...prev, warehouseId: user.warehouseId }));
+      setExportWarehouseId(user.warehouseId);
     }
   }, [user, isManager]);
 
@@ -319,7 +320,7 @@ const Export = () => {
     setSearch("");
     setExportStartDate("");
     setExportEndDate("");
-    setExportWarehouseId("");
+    if (isManager) setExportWarehouseId("");
     setFilterType("");
   };
 
@@ -812,6 +813,7 @@ const Export = () => {
             <select
               value={exportWarehouseId}
               onChange={(e) => setExportWarehouseId(e.target.value)}
+              disabled={!isManager}
             >
               <option value="">Tất cả kho</option>
               {warehouses.map((w) => (

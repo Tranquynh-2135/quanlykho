@@ -228,6 +228,11 @@ const exportExcel = async (req, res, next) => {
       }
     }
 
+    // Phân quyền: Nhân viên kho chỉ được xuất báo cáo của kho mình quản lý
+    if (req.user && req.user.role === "nhan_vien_kho") {
+      warehouseId = req.user.warehouseId;
+    }
+
     if (warehouseId) query.warehouseId = warehouseId;
     if (recipientType) query.recipientType = recipientType;
 

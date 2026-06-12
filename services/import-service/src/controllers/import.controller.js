@@ -233,13 +233,17 @@ const exportExcel = async (req, res, next) => {
       query.supplierId = supplierId.trim();
     }
 
-    // Lọc theo kho - Đảm bảo lọc đúng ID
+    // Phân quyền: Nhân viên kho chỉ được xuất báo cáo của kho mình quản lý
+    if (req.user && req.user.role === "nhan_vien_kho") {
+      warehouseId = req.user.warehouseId;
+    }
+
     if (
       warehouseId &&
       warehouseId !== "undefined" &&
-      warehouseId.trim() !== ""
+      String(warehouseId).trim() !== ""
     ) {
-      query.warehouseId = warehouseId.trim();
+      query.warehouseId = String(warehouseId).trim();
     }
 
     // Lọc theo mã sản phẩm (tìm các phiếu có chứa mã SP này)
