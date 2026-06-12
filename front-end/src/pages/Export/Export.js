@@ -49,10 +49,16 @@ const Export = () => {
   const loadData = async (currentPage = 1) => {
     try {
       setLoading(true);
+
+      const exportParams = { page: currentPage, limit: 20 };
+      if (!isManager && user?.warehouseId) {
+        exportParams.warehouseId = user.warehouseId;
+      }
+
       const [whRes, prodRes, expRes] = await Promise.all([
         warehouseApi.getAll({ status: "active" }),
         productApi.getAll(),
-        exportApi.getAll({ page: currentPage, limit: 20 }),
+        exportApi.getAll(exportParams),
       ]);
 
       setWarehouses(whRes.data.data || []);

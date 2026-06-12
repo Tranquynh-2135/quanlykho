@@ -10,12 +10,23 @@ const WAREHOUSE_SERVICE_URL =
 // ====================== GET ALL ======================
 const getAllExports = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 20, warehouseId } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
+    const query = {};
+
+    // Phân quyền: Nhân viên kho chỉ thấy phiếu của kho mình quản lý
+    if (req.user && req.user.role === "nhan_vien_kho") {
+      query.warehouseId = req.user.warehouseId;
+    } else if (warehouseId) {
+      query.warehouseId = warehouseId;
+    }
 
     const [exports, total] = await Promise.all([
-      Export.find().sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
-      Export.countDocuments(),
+      Export.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit)),
+      Export.countDocuments(query),
     ]);
 
     res.json({

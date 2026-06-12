@@ -55,12 +55,19 @@ const Import = () => {
   const loadData = async (showLoading = true, currentPage = 1) => {
     try {
       if (showLoading) setLoading(true);
+
+      const importParams = { page: currentPage, limit: 20 };
+      // Nếu là nhân viên kho, chỉ lấy phiếu của kho đó
+      if (user?.role === "nhan_vien_kho" && user.warehouseId) {
+        importParams.warehouseId = user.warehouseId;
+      }
+
       const [supRes, whRes, prodRes, catRes, impRes] = await Promise.all([
         supplierApi.getAll({ status: "active" }),
         warehouseApi.getAll({ status: "active" }),
         productApi.getAll(),
         productApi.getAllCategories(),
-        importApi.getAll({ page: currentPage, limit: 20 }),
+        importApi.getAll(importParams),
       ]);
 
       setSuppliers(supRes.data.data || []);

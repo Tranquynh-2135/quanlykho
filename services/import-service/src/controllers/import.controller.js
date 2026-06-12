@@ -17,8 +17,13 @@ const getAllImports = async (req, res, next) => {
 
     const query = {};
 
-    if (supplierId) query.supplierId = supplierId;
-    if (warehouseId) query.warehouseId = warehouseId;
+    // Phân quyền: Nhân viên kho chỉ thấy phiếu của kho mình quản lý
+    if (req.user && req.user.role === "nhan_vien_kho") {
+      query.warehouseId = req.user.warehouseId;
+    } else {
+      if (supplierId) query.supplierId = supplierId;
+      if (warehouseId) query.warehouseId = warehouseId;
+    }
 
     if (search) {
       query.$or = [
