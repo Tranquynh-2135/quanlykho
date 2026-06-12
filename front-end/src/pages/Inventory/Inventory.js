@@ -7,7 +7,8 @@ import { getExpiryInfo } from "../../utils/expiryHelper";
 import "./Inventory.css";
 
 const PRODUCT_SERVICE_URL =
-  process.env.REACT_APP_PRODUCT_SERVICE_URL || "http://localhost:4001";
+  process.env.REACT_APP_PRODUCT_SERVICE_URL ||
+  "https://product-service-production-08db.up.railway.app";
 
 const Inventory = () => {
   const { user, isQuanLyKho, isNhanVienKho } = useAuth();
