@@ -480,8 +480,11 @@ const Export = () => {
       warehouseId: exportWarehouseId,
       recipientType: filterType,
     };
-
-    window.open(exportApi.getExportUrl(params), "_blank");
+    const userData = JSON.parse(sessionStorage.getItem("user"));
+    const token = userData?.token;
+    const exportUrl = exportApi.getExportUrl(params);
+    const separator = exportUrl.includes("?") ? "&" : "?";
+    window.open(`${exportUrl}${separator}token=${token}`, "_blank");
   };
 
   if (loading) return <div className="loading">Đang tải dữ liệu...</div>;

@@ -3,21 +3,25 @@ const jwt = require("jsonwebtoken");
 const verifyToken = (req, res, next) => {
   // Lấy header Authorization
   const authHeader = req.headers.authorization;
+  let token;
 
-  // Kiểm tra xem header có tồn tại và bắt đầu bằng 'Bearer ' không
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    // Tách lấy token từ chuỗi 'Bearer <token>'
+    token = authHeader.split(" ")[1];
+  } else if (req.query.token) {
+    // Cho phép lấy token từ query parameter để hỗ trợ xuất Excel
+    token = req.query.token;
+  }
+
+  if (!token) {
     return res.status(401).json({
       success: false,
       message: "Unauthorized: No token provided or invalid format",
     });
   }
 
-  // Tách lấy token từ chuỗi 'Bearer <token>'
-  const token = authHeader.split(" ")[1];
-
   try {
     // Xác thực token. Sử dụng JWT_SECRET từ file .env của service này.
-    // Đảm bảo JWT_SECRET giống hệt với mã ở user-service.
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded; // Gắn thông tin người dùng đã giải mã vào đối tượng request
     next(); // Chuyển quyền điều khiển sang middleware hoặc route tiếp theo

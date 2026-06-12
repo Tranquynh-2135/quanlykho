@@ -858,7 +858,11 @@ const Import = () => {
       warehouseId: exportWarehouseId,
       productCode: exportProductCode,
     };
-    window.open(importApi.getExportUrl(params), "_blank");
+    const userData = JSON.parse(sessionStorage.getItem("user"));
+    const token = userData?.token;
+    const exportUrl = importApi.getExportUrl(params);
+    const separator = exportUrl.includes("?") ? "&" : "?";
+    window.open(`${exportUrl}${separator}token=${token}`, "_blank");
   };
 
   if (loading) return <div className="loading">Đang tải dữ liệu...</div>;
